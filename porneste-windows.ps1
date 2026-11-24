@@ -43,20 +43,37 @@ const stop = async () => { await pg.stop(); process.exit(0) }
 process.on('SIGINT', stop); process.on('SIGTERM', stop)
 setInterval(() => {}, 1 << 30)
 '@ | Set-Content -Encoding UTF8 (Join-Path $Pg 'pg.mjs')
-$Log = Join-Path $Pg 'log.txt'
 # Daca o pornire anterioara a lasat baza de date deschisa (fereastra inchisa), o oprim intai
-Get-CimInstance Win32_Process -Filter "Name='node.exe'" -ErrorAction SilentlyContinue |
-  Where-Object { $_.CommandLine -like '*pg.mjs*' -or $_.CommandLine -like '*cadranul-tools*postgres*' } |
-  ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
-Get-Process -Name postgres -ErrorAction SilentlyContinue | Where-Object { $_.Path -like "$T*" } | Stop-Process -Force -ErrorAction SilentlyContinue
+Write-Host 'Opresc eventuala baza de date ramasa de la pornirea anterioara...'
+Get-Process -Name postgres -ErrorAction SilentlyContinue | Where-Object { $_.Path -like "$T*" } | ForEach-Object { & taskkill /T /F /PID $_.Id 2>&1 | Out-Null }
+Get-Process -Name node -ErrorAction SilentlyContinue | Where-Object { $_.Path -like "$NodeDir*" } | ForEach-Object { & taskkill /T /F /PID $_.Id 2>&1 | Out-Null }
 Start-Sleep 2
-if (Test-Path $Log) { Remove-Item $Log -Force -ErrorAction SilentlyContinue }
-$pgProc = Start-Process -FilePath (Join-Path $NodeDir 'node.exe') -ArgumentList @('pg.mjs', (Join-Path $Pg 'data-utf8')) `
-  -WorkingDirectory $Pg -RedirectStandardOutput $Log -RedirectStandardError (Join-Path $Pg 'err.txt') -WindowStyle Hidden -PassThru
+$DataDir = Join-Path $Pg 'data-utf8'
+$PidFile = Join-Path $DataDir 'postmaster.pid'
+if ((Test-Path $PidFile) -and -not (Get-Process -Name postgres -ErrorAction SilentlyContinue | Where-Object { $_.Path -like "$T*" })) {
+  Remove-Item $PidFile -Force -ErrorAction SilentlyContinue
+}
+$Log = Join-Path $Pg ("log-" + (Get-Date -Format 'yyyyMMdd-HHmmss') + ".txt")
+$Err = Join-Path $Pg ("err-" + (Get-Date -Format 'yyyyMMdd-HHmmss') + ".txt")
+Get-ChildItem $Pg -Filter 'log-*.txt' -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -Skip 5 | Remove-Item -Force -ErrorAction SilentlyContinue
+Get-ChildItem $Pg -Filter 'err-*.txt' -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -Skip 5 | Remove-Item -Force -ErrorAction SilentlyContinue
+Write-Host 'Pornesc baza de date (prima data dureaza pana la un minut)...'
+$pgProc = Start-Process -FilePath (Join-Path $NodeDir 'node.exe') -ArgumentList @('pg.mjs', $DataDir) `
+  -WorkingDirectory $Pg -RedirectStandardOutput $Log -RedirectStandardError $Err -WindowStyle Hidden -PassThru
 try {
   $ok = $false
-  for ($i = 0; $i -lt 90; $i++) { if ((Test-Path $Log) -and (Select-String -Path $Log -Pattern 'PG_GATA' -Quiet)) { $ok = $true; break }; Start-Sleep 1 }
-  if (-not $ok) { Write-Host 'Baza de date nu a pornit:' -ForegroundColor Red; Get-Content (Join-Path $Pg 'err.txt') -Tail 20; exit 1 }
+  for ($i = 0; $i -lt 120; $i++) {
+    if ((Test-Path $Log) -and (Select-String -Path $Log -Pattern 'PG_GATA' -Quiet)) { $ok = $true; break }
+    if ($pgProc.HasExited) { break }
+    if ($i -gt 0 -and $i % 10 -eq 0) { Write-Host "  ... inca astept baza de date ($i s)" }
+    Start-Sleep 1
+  }
+  if (-not $ok) {
+    Write-Host 'Baza de date nu a pornit. Ultimele mesaje:' -ForegroundColor Red
+    if (Test-Path $Err) { Get-Content $Err -Tail 25 }
+    if (Test-Path $Log) { Get-Content $Log -Tail 25 }
+    exit 1
+  }
   Write-Host 'Baza de date pornita.'
 
   # 3. Setari locale
