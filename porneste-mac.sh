@@ -24,7 +24,7 @@ cat > "$T/pg/pg.mjs" <<'JS'
 import EmbeddedPostgres from 'embedded-postgres'
 import { existsSync } from 'node:fs'
 const dir = process.argv[2]
-const pg = new EmbeddedPostgres({ databaseDir: dir, user: 'cadranul', password: 'cadranul', port: 5434, persistent: true })
+const pg = new EmbeddedPostgres({ databaseDir: dir, user: 'cadranul', password: 'cadranul', port: 5434, persistent: true, initdbFlags: ['--encoding=UTF8', '--locale=C'] })
 if (!existsSync(dir + '/PG_VERSION')) await pg.initialise()
 await pg.start()
 try { await pg.createDatabase('cadranul') } catch {}
@@ -33,7 +33,7 @@ const stop = async () => { await pg.stop(); process.exit(0) }
 process.on('SIGINT', stop); process.on('SIGTERM', stop)
 setInterval(() => {}, 1 << 30)
 JS
-(cd "$T/pg" && node pg.mjs "$T/pg/data" > "$T/pg/log.txt" 2>&1) &
+(cd "$T/pg" && node pg.mjs "$T/pg/data-utf8" > "$T/pg/log.txt" 2>&1) &
 PGPID=$!
 trap 'kill $PGPID 2>/dev/null; wait $PGPID 2>/dev/null' EXIT
 for i in $(seq 1 60); do grep -q PG_GATA "$T/pg/log.txt" 2>/dev/null && break; sleep 1; done
@@ -53,7 +53,7 @@ fi
 # 4. Programe, tabele, continut demonstrativ (doar prima data: seed-ul sterge baza)
 [ -d node_modules/next ] || npm ci --no-audit --no-fund
 npx payload migrate
-if [ ! -f "$T/pg/seed-facut" ]; then npm run seed && touch "$T/pg/seed-facut"; fi
+if [ ! -f "$T/pg/seed-facut-utf8" ]; then npm run seed && touch "$T/pg/seed-facut-utf8"; fi
 
 # 5. Porneste
 ( sleep 20; open http://localhost:3000 ) &

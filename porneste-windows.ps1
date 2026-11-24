@@ -32,7 +32,7 @@ if (-not (Test-Path (Join-Path $Pg 'node_modules\embedded-postgres'))) {
 import EmbeddedPostgres from 'embedded-postgres'
 import { existsSync } from 'node:fs'
 const dir = process.argv[2]
-const pg = new EmbeddedPostgres({ databaseDir: dir, user: 'cadranul', password: 'cadranul', port: 5434, persistent: true })
+const pg = new EmbeddedPostgres({ databaseDir: dir, user: 'cadranul', password: 'cadranul', port: 5434, persistent: true, initdbFlags: ['--encoding=UTF8', '--locale=C'] })
 if (!existsSync(dir + '/PG_VERSION')) await pg.initialise()
 await pg.start()
 try { await pg.createDatabase('cadranul') } catch {}
@@ -43,7 +43,7 @@ setInterval(() => {}, 1 << 30)
 '@ | Set-Content -Encoding UTF8 (Join-Path $Pg 'pg.mjs')
 $Log = Join-Path $Pg 'log.txt'
 if (Test-Path $Log) { Remove-Item $Log }
-$pgProc = Start-Process -FilePath (Join-Path $NodeDir 'node.exe') -ArgumentList @('pg.mjs', (Join-Path $Pg 'data')) `
+$pgProc = Start-Process -FilePath (Join-Path $NodeDir 'node.exe') -ArgumentList @('pg.mjs', (Join-Path $Pg 'data-utf8')) `
   -WorkingDirectory $Pg -RedirectStandardOutput $Log -RedirectStandardError (Join-Path $Pg 'err.txt') -WindowStyle Hidden -PassThru
 try {
   $ok = $false
@@ -67,7 +67,7 @@ NEXT_PUBLIC_ADS_ON_REFUSAL=none
   # 4. Programe, tabele, continut demonstrativ (doar prima data: seed-ul sterge baza)
   if (-not (Test-Path 'node_modules\next')) { & npm ci --no-audit --no-fund; if ($LASTEXITCODE) { throw 'npm ci a esuat' } }
   & npx payload migrate; if ($LASTEXITCODE) { throw 'migrarea a esuat' }
-  $marker = Join-Path $Pg 'seed-facut'
+  $marker = Join-Path $Pg 'seed-facut-utf8'
   if (-not (Test-Path $marker)) { & npm run seed; if ($LASTEXITCODE) { throw 'seed a esuat' }; New-Item $marker | Out-Null }
 
   # 5. Porneste site-ul
