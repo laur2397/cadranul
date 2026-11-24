@@ -43,35 +43,45 @@ const stop = async () => { await pg.stop(); process.exit(0) }
 process.on('SIGINT', stop); process.on('SIGTERM', stop)
 setInterval(() => {}, 1 << 30)
 '@ | Set-Content -Encoding UTF8 (Join-Path $Pg 'pg.mjs')
-# Daca o pornire anterioara a lasat baza de date deschisa (fereastra inchisa), o oprim intai
-Write-Host 'Opresc eventuala baza de date ramasa de la pornirea anterioara...'
-Get-Process -Name postgres -ErrorAction SilentlyContinue | Where-Object { $_.Path -like "$T*" } | ForEach-Object { & taskkill /T /F /PID $_.Id 2>&1 | Out-Null }
-Get-Process -Name node -ErrorAction SilentlyContinue | Where-Object { $_.Path -like "$NodeDir*" } | ForEach-Object { & taskkill /T /F /PID $_.Id 2>&1 | Out-Null }
-Start-Sleep 2
-$DataDir = Join-Path $Pg 'data-utf8'
-$PidFile = Join-Path $DataDir 'postmaster.pid'
-if ((Test-Path $PidFile) -and -not (Get-Process -Name postgres -ErrorAction SilentlyContinue | Where-Object { $_.Path -like "$T*" })) {
-  Remove-Item $PidFile -Force -ErrorAction SilentlyContinue
+function PortDeschis([int]$port) {
+  $c = New-Object Net.Sockets.TcpClient
+  try { $r = $c.BeginConnect('127.0.0.1', $port, $null, $null); $ok = $r.AsyncWaitHandle.WaitOne(1000) -and $c.Connected; return $ok } catch { return $false } finally { $c.Close() }
 }
+$DataDir = Join-Path $Pg 'data-utf8'
 $Log = Join-Path $Pg ("log-" + (Get-Date -Format 'yyyyMMdd-HHmmss') + ".txt")
 $Err = Join-Path $Pg ("err-" + (Get-Date -Format 'yyyyMMdd-HHmmss') + ".txt")
 Get-ChildItem $Pg -Filter 'log-*.txt' -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -Skip 5 | Remove-Item -Force -ErrorAction SilentlyContinue
 Get-ChildItem $Pg -Filter 'err-*.txt' -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -Skip 5 | Remove-Item -Force -ErrorAction SilentlyContinue
-Write-Host 'Pornesc baza de date (prima data dureaza pana la un minut)...'
-$pgProc = Start-Process -FilePath (Join-Path $NodeDir 'node.exe') -ArgumentList @('pg.mjs', $DataDir) `
-  -WorkingDirectory $Pg -RedirectStandardOutput $Log -RedirectStandardError $Err -WindowStyle Hidden -PassThru
-try {
+$pgProc = $null
+if (PortDeschis 5434) {
+  # Baza de date ramasa pornita de data trecuta raspunde: o folosim pe ea
+  Write-Host 'Baza de date era deja pornita: o folosesc.'
+  $ok = $true
+} else {
+  # Ceva ramas agatat de data trecuta, dar care nu raspunde: il oprim
+  Write-Host 'Opresc eventuale resturi de la pornirea anterioara...'
+  Get-Process -Name postgres,pg_ctl -ErrorAction SilentlyContinue | Where-Object { -not $_.Path -or $_.Path -like "$T*" } | ForEach-Object { & taskkill /T /F /PID $_.Id 2>&1 | Out-Null }
+  Get-Process -Name node -ErrorAction SilentlyContinue | Where-Object { $_.Path -like "$NodeDir*" -and $_.Id -ne $PID } | ForEach-Object { & taskkill /T /F /PID $_.Id 2>&1 | Out-Null }
+  Start-Sleep 3
+  $PidFile = Join-Path $DataDir 'postmaster.pid'
+  if (Test-Path $PidFile) { Remove-Item $PidFile -Force -ErrorAction SilentlyContinue }
   $ok = $false
+  Write-Host 'Pornesc baza de date (prima data dureaza pana la un minut)...'
+  $pgProc = Start-Process -FilePath (Join-Path $NodeDir 'node.exe') -ArgumentList @('pg.mjs', $DataDir) `
+    -WorkingDirectory $Pg -RedirectStandardOutput $Log -RedirectStandardError $Err -WindowStyle Hidden -PassThru
   for ($i = 0; $i -lt 120; $i++) {
     if ((Test-Path $Log) -and (Select-String -Path $Log -Pattern 'PG_GATA' -Quiet)) { $ok = $true; break }
     if ($pgProc.HasExited) { break }
     if ($i -gt 0 -and $i % 10 -eq 0) { Write-Host "  ... inca astept baza de date ($i s)" }
     Start-Sleep 1
   }
+}
+try {
   if (-not $ok) {
     Write-Host 'Baza de date nu a pornit. Ultimele mesaje:' -ForegroundColor Red
     if (Test-Path $Err) { Get-Content $Err -Tail 25 }
     if (Test-Path $Log) { Get-Content $Log -Tail 25 }
+    Write-Host 'Incearca: inchide fereastra, reporneste calculatorul si porneste din nou.' -ForegroundColor Yellow
     exit 1
   }
   Write-Host 'Baza de date pornita.'
