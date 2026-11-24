@@ -1,7 +1,7 @@
 import type { CollectionConfig } from 'payload'
 import { autentificat, editorSauAdmin, public_ } from '../access/roluri'
 import { HOOKURI_DATE } from '../hooks/invalideaza'
-import { campSursa } from './campuri'
+import { campSursa, campuriImport, marcheazaEditareUmana } from './campuri'
 
 // Preturile la carburanti pe judet, pe zi (lei/litru). Media nationala = media judetelor din acea zi.
 export const FuelPrices: CollectionConfig = {
@@ -9,7 +9,7 @@ export const FuelPrices: CollectionConfig = {
   labels: { singular: 'Carburant (județ, zi)', plural: 'Carburanți: prețuri' },
   admin: { useAsTitle: 'day', group: 'Date utile', defaultColumns: ['county', 'day', 'petrol', 'diesel', 'lpg'] },
   access: { read: public_, create: autentificat, update: autentificat, delete: editorSauAdmin },
-  hooks: HOOKURI_DATE,
+  hooks: { beforeChange: [marcheazaEditareUmana], ...HOOKURI_DATE },
   indexes: [{ fields: ['county', 'day'], unique: true }],
   fields: [
     {
@@ -26,6 +26,6 @@ export const FuelPrices: CollectionConfig = {
       ],
     },
     { name: 'cheapestNote', label: 'Cea mai ieftină benzinărie (opțional, ex. Craiova, Calea Severinului: 7,49 lei)', type: 'text' },
-    campSursa,
+    campSursa, ...campuriImport,
   ],
 }

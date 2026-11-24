@@ -74,9 +74,9 @@ export function curbaFotoHTML(pr: number[], h: number, m: number): string {
   const nx = x(h + m / 60), ny = y(pr[h])
   const { ieftin: mi, scump: ma } = extreme(pr)
   return `<svg class="herocurve" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true"><defs><linearGradient id="hcg" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".28"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient></defs><path d="${line}L${x(23)},${bot}L${x(0)},${bot}Z" fill="url(#hcg)"/><path d="${line}" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" vector-effect="non-scaling-stroke"/></svg>
-  <span class="hc-lab${Math.abs(h + m / 60 - mi) <= 1.5 ? ' low' : ''}" style="left:${(nx / W) * 100}%;top:${(ny / H) * 100}%"><i class="hc-dot"></i><b>Acum ${fmt(pr[h])}${Math.abs(h + m / 60 - mi) <= 1.5 ? ', cel mai ieftin' : ''}</b></span>
-  ${Math.abs(h + m / 60 - mi) > 1.5 ? `<span class="hc-lab low" style="left:${(x(mi) / W) * 100}%;top:${(y(pr[mi]) / H) * 100}%"><i class="hc-dot g"></i><b>${mi}:00, cel mai ieftin</b></span>` : ''}
-  ${Math.abs(h + m / 60 - ma) > 1.5 ? `<span class="hc-lab end" style="left:${(x(ma) / W) * 100}%;top:${(y(pr[ma]) / H) * 100}%"><i class="hc-dot r"></i><b>${ma}:00, ${fmt(pr[ma])}</b></span>` : ''}
+  <span class="hc-lab${Math.abs(h + m / 60 - mi) <= 1.5 ? ' low' : ''}${nx / W > 0.55 ? ' end' : ''}" style="left:${(nx / W) * 100}%;top:${(ny / H) * 100}%"><i class="hc-dot"></i><b>Acum ${fmt(pr[h])}${Math.abs(h + m / 60 - mi) <= 1.5 ? ', cel mai ieftin' : ''}</b></span>
+  ${Math.abs(h + m / 60 - mi) > 1.5 ? `<span class="hc-lab low${x(mi) / W > 0.55 ? ' end' : ''}" style="left:${(x(mi) / W) * 100}%;top:${(y(pr[mi]) / H) * 100}%"><i class="hc-dot g"></i><b>${mi}:00, cel mai ieftin</b></span>` : ''}
+  ${Math.abs(h + m / 60 - ma) > 1.5 ? `<span class="hc-lab${x(ma) / W > 0.45 ? ' end' : ''}" style="left:${(x(ma) / W) * 100}%;top:${(y(pr[ma]) / H) * 100}%"><i class="hc-dot r"></i><b>${ma}:00, ${fmt(pr[ma])}</b></span>` : ''}
   <span class="hc-live"><i></i>Prețul curentului azi, lei/MWh. Live.</span>`
 }
 

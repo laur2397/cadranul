@@ -27,6 +27,7 @@ import { EnergyPrices } from './collections/EnergyPrices'
 import { FuelPrices } from './collections/FuelPrices'
 import { Pharmacies } from './collections/Pharmacies'
 import { Jobs } from './collections/Jobs'
+import { DataSources, SourceRuns } from './collections/DataSources'
 import { Site } from './globals/Site'
 import { Momentul } from './globals/Momentul'
 
@@ -41,7 +42,7 @@ export default buildConfig({
   i18n: { supportedLanguages: { ro }, fallbackLanguage: 'ro' },
   collections: [
     Articles, Frontpages, LiveBlogs, Authors, Media, Provenance,
-    RoadEvents, TravelTimes, Outages, WeatherAlerts, WeatherCities, EnergyPrices, FuelPrices, Pharmacies, Jobs,
+    RoadEvents, TravelTimes, Outages, WeatherAlerts, WeatherCities, EnergyPrices, FuelPrices, Pharmacies, Jobs, DataSources, SourceRuns,
     Sections, Regions, Counties, Tags, Pages, Redirects, Users,
   ],
   globals: [Momentul, Site],

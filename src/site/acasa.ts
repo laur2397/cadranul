@@ -4,7 +4,7 @@ import { D } from '../shared/harta'
 import { dialHTML, dialTextHTML, fereastraIeftina } from '../shared/energie'
 import { frazaHTML, frazaText } from '../shared/fraza'
 import { h, raw, type Safe } from './html'
-import type { Art, Reg, Snap } from './date'
+import type { Art, Prov, Reg, Snap } from './date'
 import { dateHarta, instrument, inEditie } from './harta'
 import { billboard } from './reclame'
 import { ic, pagina } from './shell'
@@ -80,9 +80,20 @@ function cardVreme(snap: Snap, ed: Reg | null): Safe {
     const nume = { yellow: 'galben', orange: 'portocaliu', red: 'roșu' } as Record<string, string>
     cod = culori.size === 1 ? `Cod ${nume[alerte[0].code]}: ${[...new Set(alerte.map((a) => a.phen))].join(', ')}` : alerte.map((a) => a.text).join('; ')
   }
+  const codSursa = alerte.some((a) => a.imp) ? ` (Sursa: ${[...new Set(alerte.filter((a) => a.imp).map((a) => a.src))].join(', ')})` : ''
   if (!w) return h`<div class="u-card"><h3>${ic('cloud')}Vremea</h3><div class="u-row">Datele meteo se actualizează.</div></div>`
-  return h`<div class="u-card"><h3>${ic(w.w)}Vremea în ${w.city}</h3><div style="display:flex;align-items:flex-end;gap:10px"><span class="u-big num">${w.temp}°</span><span style="font-size:14px;color:var(--ink-2);padding-bottom:4px">${w.cond}</span></div>${w.hours.length ? h`<div class="hours">${w.hours.map((o) => h`<div>${o.h}:00<b>${o.t}°</b></div>`)}</div>` : ''}${cod ? h`<div class="alert" style="margin:4px 0 0;padding:8px 10px;font-size:13px">${ic('warn')}<span>${cod}</span></div>` : ''}</div>`
+  return h`<div class="u-card"><h3>${ic(w.w)}Vremea în ${w.city}</h3><div style="display:flex;align-items:flex-end;gap:10px"><span class="u-big num">${w.temp}°</span><span style="font-size:14px;color:var(--ink-2);padding-bottom:4px">${w.cond}</span></div>${w.hours.length ? h`<div class="hours">${w.hours.map((o) => h`<div>${o.h}:00<b>${o.t}°</b></div>`)}</div>` : ''}${cod ? h`<div class="alert" style="margin:4px 0 0;padding:8px 10px;font-size:13px">${ic('warn')}<span>${cod}${codSursa}</span></div>` : ''}</div>`
 }
+
+/** „Sursa: ANM, actualizat azi, la 14:05” pentru datele aduse de importurile automate (gol pentru cele scrise de redacție) */
+export function notaSursa(l: Prov[], acum = new Date()): string {
+  const imp = l.filter((p) => p.imp)
+  if (!imp.length) return ''
+  const surse = [...new Set(imp.map((p) => p.src).filter(Boolean))].join(', ')
+  const upd = new Date(Math.max(...imp.map((p) => +p.upd)))
+  return `Sursa: ${surse}, actualizat ${candLung(upd, acum).replace(/^Azi/, 'azi').replace(/^Aseară/, 'aseară').replace(/^Ieri/, 'ieri').replace(/^Pe /, 'pe ')}.`
+}
+const subsolSursa = (l: Prov[]) => { const n = notaSursa(l); return n ? h`<div class="demo src">${n}</div>` : '' }
 
 export function cardFarmacii(snap: Snap, ed: Reg | null, link = true): Safe {
   if (!ed) return h`<div class="u-card"><h3>${ic('pharm')}Farmacii de gardă</h3><div class="u-row" style="flex-direction:column;align-items:flex-start;gap:8px">Ca să vezi farmaciile deschise acum lângă tine, alege orașul.<button class="btn" data-open-sheet>Alege ediția</button></div></div>`
@@ -96,14 +107,14 @@ export function utile(snap: Snap, ed: Reg | null): Safe {
   const ok = inEditie(ed)
   const ev = snap.ev.filter((e) => ok(e.regKey) && e.st !== 'ok').slice(0, 3)
   const outs = snap.out.filter((o) => ok(o.regKey)).slice(0, 4)
-  return h`${cardVreme(snap, ed)}<div class="u-card"><h3>${ic('car')}Trafic acum</h3>${ev.length ? ev.map((e) => h`<div class="u-row"><span class="status" style="background:var(--${e.st === 'closed' ? 'red' : 'orange'})"></span><span><b>${e.road}, ${e.where}</b><small>${e.what}</small></span></div>`) : h`<div class="u-row">Drumuri libere în regiune.</div>`}</div><div class="u-card"><h3>${ic('outage')}Avarii: apă, curent, gaz</h3>${outs.length ? outs.map((o) => h`<div class="u-row"><span class="ico ${o.k}" style="width:22px;height:22px;border-radius:6px;box-shadow:none;flex:none">${ic(o.k)}</span><span><b>${o.city}: ${o.t}</b><small>${o.d}</small></span></div>`) : h`<div class="u-row">Nicio avarie anunțată.</div>`}</div>${cardFarmacii(snap, ed)}`
+  return h`${cardVreme(snap, ed)}<div class="u-card"><h3>${ic('car')}Trafic acum</h3>${ev.length ? ev.map((e) => h`<div class="u-row"><span class="status" style="background:var(--${e.st === 'closed' ? 'red' : 'orange'})"></span><span><b>${e.road}, ${e.where}</b><small>${e.what}</small></span></div>`) : h`<div class="u-row">Drumuri libere în regiune.</div>`}${subsolSursa(ev)}</div><div class="u-card"><h3>${ic('outage')}Avarii: apă, curent, gaz</h3>${outs.length ? outs.map((o) => h`<div class="u-row"><span class="ico ${o.k}" style="width:22px;height:22px;border-radius:6px;box-shadow:none;flex:none">${ic(o.k)}</span><span><b>${o.city}: ${o.t}</b><small>${o.d}</small></span></div>`) : h`<div class="u-row">Nicio avarie anunțată.</div>`}${subsolSursa(outs)}</div>${cardFarmacii(snap, ed)}`
 }
 
 export function alertaDrumuri(snap: Snap, ed: Reg | null): Safe {
   const l = snap.alerte.filter((a) => !ed || a.counties.some((c) => c.regKey === ed.key))
   const a = ed ? l[0] : [...l].sort((x, y) => y.counties.length - x.counties.length)[0]
   if (!a) return h``
-  return h`<div class="alert" id="roadAlert">${ic('warn')}<span><b>${a.text}.</b> ${a.roads}</span></div>`
+  return h`<div class="alert" id="roadAlert">${ic('warn')}<span><b>${a.text}.</b> ${a.roads}${a.imp ? ` Sursa: ${a.src}.` : ''}</span></div>`
 }
 
 export function randuriDrumuri(snap: Snap, ed: Reg | null, n = 7): Safe {
@@ -132,7 +143,8 @@ export const minute = (a: Art) => a.min
 export function fuelCard(snap: Snap, ed: Reg | null) {
   const n = snap.fuelNat
   const j = ed?.refCounty
-  const fj = j ? snap.fuel.get(j.slug) : null
+  const fjAll = j ? snap.fuel.get(j.slug) : null
+  const fj = fjAll && !fjAll.vechi ? fjAll : null
   const f: [number, number, number] = fj ? [fj.azi.petrol, fj.azi.diesel, fj.azi.lpg] : n.azi
   const names = ['Benzină', 'Motorină', 'GPL']
   const cells = f.map((v, i) => {
@@ -141,8 +153,10 @@ export function fuelCard(snap: Snap, ed: Reg | null) {
     return h`<div><small>${names[i]}</small><b class="num">${fmt(v, 2)}</b><em class="${d > 0 ? 'up' : 'down'}">${txt}</em></div>`
   })
   const unde = j && fj ? `${j.name}, față de media țării` : 'media țării, față de ieri'
-  const nota = fj?.azi.note ? `Cel mai ieftin azi: ${fj.azi.note}.` : ''
-  return { cells, unde, nota, f }
+  const vechi = !fj && n.vechi ? n.vechi : ''
+  const p = fj ? fj.azi : n.prov
+  const nota = [vechi ? `Ultimele prețuri publicate: ${vechi}.` : '', fj?.azi.note ? `Cel mai ieftin azi: ${fj.azi.note}.` : '', p ? notaSursa([p]) : ''].filter(Boolean).join(' ')
+  return { cells, unde, nota, f, vechi }
 }
 
 export function paginaAcasa(snap: Snap, ed: Reg | null, acum: Date, ultimaVizita: number | null): string {
@@ -190,12 +204,12 @@ export function paginaAcasa(snap: Snap, ed: Reg | null, acum: Date, ultimaVizita
         <section class="card" id="energie" aria-labelledby="enT">
           <div class="card-h"><h3 id="enT">Curentul azi, oră de oră</h3><small>${snap.pret ? 'OPCOM' : ''}</small></div>
           ${pr ? h`<div class="dialwrap"><div class="dial" id="dial">${raw(dialHTML(pr, ora, min))}</div><div class="dialtxt" id="dialTxt">${raw(dialTextHTML(pr, ora))}</div></div><div class="dialtip" id="dialTip" aria-live="polite"></div>` : h`<p class="dialtxt">Prețurile de azi nu au fost încă publicate.</p>`}
-          <div class="demo">${pretVechi ? `Ultimele prețuri publicate: ${pretVechi}. ` : ''}${process.env.NEXT_PUBLIC_DEMO === 'true' ? 'Cifre demonstrative. ' : ''}Contează direct dacă ai contract cu preț dinamic.</div>
+          <div class="demo">${pretVechi ? `Ultimele prețuri publicate: ${pretVechi}. ` : ''}${process.env.NEXT_PUBLIC_DEMO === 'true' && !snap.pret?.imp ? 'Cifre demonstrative. ' : ''}${snap.pret ? notaSursa([snap.pret], acum) + ' ' : ''}Contează direct dacă ai contract cu preț dinamic.</div>
         </section>
         <section class="card" aria-labelledby="fuT">
           <div class="card-h"><h3 id="fuT">Carburant azi</h3><small id="fuWhere">${fc.unde}</small></div>
-          <div class="fuel" id="fuel">${fc.cells}</div>
-          <div class="demo" style="margin-top:6px" id="fuNote">${fc.nota} ${process.env.NEXT_PUBLIC_DEMO === 'true' ? 'Prețuri demonstrative, lei/litru.' : 'Lei/litru.'}</div>
+          <div class="fuel${fc.vechi ? ' vechi' : ''}" id="fuel">${fc.cells}</div>
+          <div class="demo" style="margin-top:6px" id="fuNote">${fc.nota} ${process.env.NEXT_PUBLIC_DEMO === 'true' && !fc.vechi && !snap.fuelNat.prov?.imp ? 'Prețuri demonstrative, lei/litru.' : 'Lei/litru.'}</div>
         </section>
         ${top ? h`<a class="topstory" id="topStory" href="/articol/${top.slug}" data-id="${top.slug}"><div class="ph"><img src="${top.img.src}" alt="" fetchpriority="high"><span>${sel.noi.has(top.slug) ? `Acum, ${cand(top.pub, acum)}` : top.label}</span></div><div class="tx"><h2>${top.title}</h2><p>${top.dek}</p></div></a>` : ''}
       </aside>

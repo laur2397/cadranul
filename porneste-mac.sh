@@ -1,6 +1,7 @@
 #!/bin/bash
 # Porneste Cadranul pe un Mac (Intel sau Apple), fara Homebrew si fara parola de sistem.
 # Tot ce descarca sta in ~/.cadranul-tools. Oprire: Ctrl+C. Data viitoare: bash porneste-mac.sh
+# Optional: bash porneste-mac.sh --cu-surse  porneste si importurile automate de date (ANM, OPCOM; docs/fluxuri-date.md)
 set -e
 cd "$(dirname "$0")"
 T="$HOME/.cadranul-tools"; mkdir -p "$T"
@@ -35,7 +36,8 @@ setInterval(() => {}, 1 << 30)
 JS
 (cd "$T/pg" && node pg.mjs "$T/pg/data-utf8" > "$T/pg/log.txt" 2>&1) &
 PGPID=$!
-trap 'kill $PGPID 2>/dev/null; wait $PGPID 2>/dev/null' EXIT
+WPID=""
+trap 'kill $WPID 2>/dev/null; kill $PGPID 2>/dev/null; wait $PGPID 2>/dev/null' EXIT
 for i in $(seq 1 60); do grep -q PG_GATA "$T/pg/log.txt" 2>/dev/null && break; sleep 1; done
 grep -q PG_GATA "$T/pg/log.txt" || { echo "Baza de date nu a pornit:"; tail -20 "$T/pg/log.txt"; exit 1; }
 
@@ -55,7 +57,12 @@ fi
 npx payload migrate
 if [ ! -f "$T/pg/seed-facut-utf8" ]; then npm run seed && touch "$T/pg/seed-facut-utf8"; fi
 
-# 5. Porneste
+# 5. Porneste (cu --cu-surse: si worker-ul importurilor automate, jurnal in ~/.cadranul-tools/surse.log)
+if [ "$1" = "--cu-surse" ]; then
+  npm run surse:worker > "$T/surse.log" 2>&1 &
+  WPID=$!
+  echo "Importurile automate rulează (jurnal: $T/surse.log, stare: npm run surse:status)"
+fi
 ( sleep 20; open http://localhost:3000 ) &
 echo "== Site: http://localhost:3000   Redactie: http://localhost:3000/admin   Oprire: Ctrl+C =="
 npm run dev

@@ -82,6 +82,8 @@ export interface Config {
     'fuel-prices': FuelPrice;
     pharmacies: Pharmacy;
     jobs: Job;
+    'data-sources': DataSource;
+    'source-runs': SourceRun;
     sections: Section;
     regions: Region;
     counties: County;
@@ -111,6 +113,8 @@ export interface Config {
     'fuel-prices': FuelPricesSelect<false> | FuelPricesSelect<true>;
     pharmacies: PharmaciesSelect<false> | PharmaciesSelect<true>;
     jobs: JobsSelect<false> | JobsSelect<true>;
+    'data-sources': DataSourcesSelect<false> | DataSourcesSelect<true>;
+    'source-runs': SourceRunsSelect<false> | SourceRunsSelect<true>;
     sections: SectionsSelect<false> | SectionsSelect<true>;
     regions: RegionsSelect<false> | RegionsSelect<true>;
     counties: CountiesSelect<false> | CountiesSelect<true>;
@@ -565,6 +569,15 @@ export interface RoadEvent {
    */
   until?: string | null;
   source?: string | null;
+  /**
+   * Gol = scris de redacție. Conectorii scriu doar documentele lor.
+   */
+  importer?: string | null;
+  externalId?: string | null;
+  /**
+   * Se bifează singur când salvezi un document importat. Debifează ca să-l dai înapoi importului.
+   */
+  editedByHuman?: boolean | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -606,6 +619,15 @@ export interface Outage {
    */
   until?: string | null;
   source?: string | null;
+  /**
+   * Gol = scris de redacție. Conectorii scriu doar documentele lor.
+   */
+  importer?: string | null;
+  externalId?: string | null;
+  /**
+   * Se bifează singur când salvezi un document importat. Debifează ca să-l dai înapoi importului.
+   */
+  editedByHuman?: boolean | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -626,6 +648,15 @@ export interface WeatherAlert {
    */
   until?: string | null;
   source?: string | null;
+  /**
+   * Gol = scris de redacție. Conectorii scriu doar documentele lor.
+   */
+  importer?: string | null;
+  externalId?: string | null;
+  /**
+   * Se bifează singur când salvezi un document importat. Debifează ca să-l dai înapoi importului.
+   */
+  editedByHuman?: boolean | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -661,7 +692,20 @@ export interface EnergyPrice {
   id: number;
   day: string;
   values: string;
+  /**
+   * Din 2025 PZU se tranzacționează pe intervale de 15 minute. Site-ul afișează media pe oră (câmpul de mai sus); valorile brute rămân aici.
+   */
+  quarterValues?: string | null;
   source?: string | null;
+  /**
+   * Gol = scris de redacție. Conectorii scriu doar documentele lor.
+   */
+  importer?: string | null;
+  externalId?: string | null;
+  /**
+   * Se bifează singur când salvezi un document importat. Debifează ca să-l dai înapoi importului.
+   */
+  editedByHuman?: boolean | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -678,6 +722,15 @@ export interface FuelPrice {
   lpg?: number | null;
   cheapestNote?: string | null;
   source?: string | null;
+  /**
+   * Gol = scris de redacție. Conectorii scriu doar documentele lor.
+   */
+  importer?: string | null;
+  externalId?: string | null;
+  /**
+   * Se bifează singur când salvezi un document importat. Debifează ca să-l dai înapoi importului.
+   */
+  editedByHuman?: boolean | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -724,6 +777,67 @@ export interface Job {
   promotedUntil?: string | null;
   source?: ('direct' | 'import') | null;
   sourceUrl?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * Importurile automate: ce sursă, dacă are voie să ruleze, când a mers ultima dată. Starea și din terminal: npm run surse:status.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "data-sources".
+ */
+export interface DataSource {
+  id: number;
+  key: string;
+  name: string;
+  enabled?: boolean | null;
+  legalStatus: 'public_official' | 'needs_permission' | 'permission_granted' | 'partner_api';
+  /**
+   * Se poate corecta aici dacă sursa își mută pagina. Gol = adresa din cod.
+   */
+  url?: string | null;
+  termsUrl?: string | null;
+  attribution?: string | null;
+  schedule?: string | null;
+  /**
+   * Fișierul din docs/cereri-acces/ de trimis de pe adresa firmei editoare.
+   */
+  requestLetter?: string | null;
+  notes?: string | null;
+  lastStatus?: ('ok' | 'neschimbat' | 'eroare' | 'oprit') | null;
+  lastRun?: string | null;
+  lastSuccess?: string | null;
+  consecutiveFailures?: number | null;
+  itemsWritten?: number | null;
+  lastError?: string | null;
+  httpCache?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "source-runs".
+ */
+export interface SourceRun {
+  id: number;
+  connector: string;
+  startedAt?: string | null;
+  durationMs?: number | null;
+  status?: ('ok' | 'neschimbat' | 'eroare' | 'oprit') | null;
+  dryRun?: boolean | null;
+  created?: number | null;
+  updated?: number | null;
+  expired?: number | null;
+  skipped?: number | null;
+  message?: string | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -871,6 +985,14 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'jobs';
         value: number | Job;
+      } | null)
+    | ({
+        relationTo: 'data-sources';
+        value: number | DataSource;
+      } | null)
+    | ({
+        relationTo: 'source-runs';
+        value: number | SourceRun;
       } | null)
     | ({
         relationTo: 'sections';
@@ -1205,6 +1327,9 @@ export interface RoadEventsSelect<T extends boolean = true> {
   from?: T;
   until?: T;
   source?: T;
+  importer?: T;
+  externalId?: T;
+  editedByHuman?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -1238,6 +1363,9 @@ export interface OutagesSelect<T extends boolean = true> {
   from?: T;
   until?: T;
   source?: T;
+  importer?: T;
+  externalId?: T;
+  editedByHuman?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -1254,6 +1382,9 @@ export interface WeatherAlertsSelect<T extends boolean = true> {
   from?: T;
   until?: T;
   source?: T;
+  importer?: T;
+  externalId?: T;
+  editedByHuman?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -1287,7 +1418,11 @@ export interface WeatherSelect<T extends boolean = true> {
 export interface EnergyPricesSelect<T extends boolean = true> {
   day?: T;
   values?: T;
+  quarterValues?: T;
   source?: T;
+  importer?: T;
+  externalId?: T;
+  editedByHuman?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -1303,6 +1438,9 @@ export interface FuelPricesSelect<T extends boolean = true> {
   lpg?: T;
   cheapestNote?: T;
   source?: T;
+  importer?: T;
+  externalId?: T;
+  editedByHuman?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -1347,6 +1485,49 @@ export interface JobsSelect<T extends boolean = true> {
   promotedUntil?: T;
   source?: T;
   sourceUrl?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "data-sources_select".
+ */
+export interface DataSourcesSelect<T extends boolean = true> {
+  key?: T;
+  name?: T;
+  enabled?: T;
+  legalStatus?: T;
+  url?: T;
+  termsUrl?: T;
+  attribution?: T;
+  schedule?: T;
+  requestLetter?: T;
+  notes?: T;
+  lastStatus?: T;
+  lastRun?: T;
+  lastSuccess?: T;
+  consecutiveFailures?: T;
+  itemsWritten?: T;
+  lastError?: T;
+  httpCache?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "source-runs_select".
+ */
+export interface SourceRunsSelect<T extends boolean = true> {
+  connector?: T;
+  startedAt?: T;
+  durationMs?: T;
+  status?: T;
+  dryRun?: T;
+  created?: T;
+  updated?: T;
+  expired?: T;
+  skipped?: T;
+  message?: T;
   updatedAt?: T;
   createdAt?: T;
 }

@@ -721,3 +721,7 @@ a.icon-btn{color:inherit}
 .crumb a.sec:hover{text-decoration:underline}
 .roads-page .inst{grid-area:auto}
 #ov .pin,#ov .rmark,#ov .ico,#ov .bubble{cursor:pointer}
+/* surse automate: atribuirea si datele vechi (peste 48 h) */
+.demo.src{margin-top:6px}
+.fuel.vechi{opacity:.55;filter:grayscale(1)}
+.tbl tr.vechi td{color:var(--ink-3)}

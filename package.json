@@ -20,7 +20,10 @@
     "audit:registru": "tsx scripts/valideaza-registru.ts",
     "typecheck": "tsc --noEmit",
     "migrate": "payload migrate",
-    "shots": "tsx scripts/capturi.ts"
+    "shots": "tsx scripts/capturi.ts",
+    "surse": "tsx scripts/surse.ts",
+    "surse:status": "tsx scripts/surse.ts status",
+    "surse:worker": "tsx scripts/surse.ts worker"
   },
   "dependencies": {
     "@faceless-ui/modal": "3.0.0",

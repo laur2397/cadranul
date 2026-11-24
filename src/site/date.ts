@@ -22,11 +22,13 @@ export type Art = {
   regKey: CheieRegiune | ''; counties: Jud[]; place: { name: string; x: number; y: number } | null
   img: Img; pub: Date; upd: Date; prio: number; type: string; authors: Aut[]; min: number
 }
-export type Ev = { id: number; road: string; a: boolean; where: string; what: string; st: StareDrum; lab: string; regKey: CheieRegiune; cty: Jud; x: number; y: number; seg: string[] }
-export type Out = { id: number; k: 'apa' | 'curent' | 'gaz'; t: string; d: string; city: string; regKey: CheieRegiune; cty: Jud; x: number; y: number }
+/** sursa (atribuirea) si momentul ultimei actualizari; `imp` = scris de un import automat (src/surse) */
+export type Prov = { src: string; upd: Date; imp: boolean }
+export type Ev = { id: number; road: string; a: boolean; where: string; what: string; st: StareDrum; lab: string; regKey: CheieRegiune; cty: Jud; x: number; y: number; seg: string[] } & Prov
+export type Out = { id: number; k: 'apa' | 'curent' | 'gaz'; t: string; d: string; city: string; regKey: CheieRegiune; cty: Jud; x: number; y: number } & Prov
 export type Wx = { city: string; key: string; temp: number; w: string; cond: string; level: string; hours: { h: number; t: number }[]; regKey: CheieRegiune | ''; x: number; y: number }
-export type Alerta = { id: number; code: 'yellow' | 'orange' | 'red'; phen: string; text: string; roads: string; counties: Jud[]; from: Date | null }
-export type Fuel = { day: string; petrol: number; diesel: number; lpg: number; note?: string }
+export type Alerta = { id: number; code: 'yellow' | 'orange' | 'red'; phen: string; text: string; roads: string; counties: Jud[]; from: Date | null } & Prov
+export type Fuel = { day: string; petrol: number; diesel: number; lpg: number; note?: string } & Prov
 export type Job = {
   id: number; slug: string; title: string; employer: string; city: string; cty: Jud; regKey: CheieRegiune; pay: string; where: string
   description?: string; requirements?: string; applyEmail?: string; applyUrl?: string; deadline: Date | null; promo: boolean; source: string; sourceUrl?: string; created: Date
@@ -45,9 +47,11 @@ export type Snap = {
   auts: Aut[]; autBySlug: Map<string, Aut>
   arts: Art[]; artBySlug: Map<string, Art>
   ev: Ev[]; out: Out[]; wx: Wx[]; alerte: Alerta[]
-  pret: { day: string; values: number[]; source: string } | null
-  pretMaine: { day: string; values: number[]; source: string } | null
-  fuel: Map<string, { azi: Fuel; ieri: Fuel | null }>; fuelNat: { azi: [number, number, number]; ieri: [number, number, number] | null }
+  pret: ({ day: string; values: number[]; source: string } & Prov) | null
+  pretMaine: ({ day: string; values: number[]; source: string } & Prov) | null
+  /** `vechi` = ultimele preturi ale judetului au mai mult de 48 de ore (nu intra in media tarii, se afiseaza estompat) */
+  fuel: Map<string, { azi: Fuel; ieri: Fuel | null; vechi: boolean }>
+  fuelNat: { azi: [number, number, number]; ieri: [number, number, number] | null; vechi: string; prov: Prov | null }
   jobs: Job[]; farm: Farm[]; timpi: Timp[]
   prima: Map<string, Prima>; fraze: Fraza[]; nextUpdate: string; pensie: { pct: number; from: string }
   live: Live[]
@@ -67,6 +71,7 @@ export function imagine(im: Doc | undefined, media: Map<number, Doc>): Img {
   return { src, alt: im?.alt || f?.alt || '', caption: im?.caption || undefined, credit: im?.credit || f?.credit || undefined, chart: im?.chart || undefined }
 }
 
+const prov = (d: Doc): Prov => ({ src: String(d.source || ''), upd: new Date(d.updatedAt || d.createdAt || 0), imp: !!d.importer })
 const activ = (d: Doc, acum: number, inainte = 36 * 3600e3) => (!d.until || Date.parse(d.until) > acum) && (!d.from || Date.parse(d.from) < acum + inainte)
 
 let cache: Snap | null = null
@@ -171,13 +176,13 @@ async function incarca(): Promise<Snap> {
     const [x, y] = poz(d, cty)
     const st = STARE[d.status] || 'ok'
     const lab = d.label || (st === 'ok' ? 'normal' : d.delayMinutes ? `+${d.delayMinutes} min` : st === 'closed' ? 'închis' : st === 'works' ? 'lucrări' : 'aglomerat')
-    return { id: d.id, road: d.road, a: eAutostrada(d.road), where: d.segment, what: d.what, st, lab, regKey: cty?.regKey, cty, x, y, seg: (d.mapSegment || []) as string[] }
+    return { id: d.id, road: d.road, a: eAutostrada(d.road), where: d.segment, what: d.what, st, lab, regKey: cty?.regKey, cty, x, y, seg: (d.mapSegment || []) as string[], ...prov(d) }
   }).filter((e) => e.cty)
 
   const out: Out[] = (ou.docs as Doc[]).filter((d) => activ(d, acum, 72 * 3600e3)).map((d) => {
     const cty = judById.get(idDe(d.county) as number) as Jud
     const [x, y] = poz(d, cty)
-    return { id: d.id, k: AVARIE[d.kind] || 'apa', t: d.title, d: d.area, city: d.city, regKey: cty?.regKey, cty, x, y }
+    return { id: d.id, k: AVARIE[d.kind] || 'apa', t: d.title, d: d.area, city: d.city, regKey: cty?.regKey, cty, x, y, ...prov(d) }
   }).filter((o) => o.cty)
 
   const wx: Wx[] = (wc.docs as Doc[]).map((d) => {
@@ -189,25 +194,34 @@ async function incarca(): Promise<Snap> {
   const alerte: Alerta[] = (wa.docs as Doc[]).filter((d) => activ(d, acum, 24 * 3600e3)).map((d) => ({
     id: d.id, code: d.code, phen: d.phenomenon, text: d.text, roads: d.roads || '',
     counties: ((d.counties || []) as unknown[]).map((c) => judById.get(idDe(c) as number)).filter(Boolean) as Jud[],
-    from: d.from ? new Date(d.from) : null,
+    from: d.from ? new Date(d.from) : null, ...prov(d),
   }))
 
-  const ens = (ep.docs as Doc[]).map((d) => ({ day: d.day as string, values: parseazaValori(d.values), source: d.source || 'OPCOM' })).filter((d) => d.values.length === 24)
+  const ens = (ep.docs as Doc[]).map((d) => ({ day: d.day as string, values: parseazaValori(d.values), source: d.source || 'OPCOM', ...prov(d) })).filter((d) => d.values.length === 24)
   const pret = ens.find((d) => d.day <= azi) || null
   const pretMaine = ens.find((d) => d.day === ziPlus(azi, 1)) || null
 
-  const fuel = new Map<string, { azi: Fuel; ieri: Fuel | null }>()
+  const fuel = new Map<string, { azi: Fuel; ieri: Fuel | null; vechi: boolean }>()
   const peJudet = new Map<number, Doc[]>()
   for (const d of fp.docs as Doc[]) { const k = idDe(d.county) as number; if (!peJudet.has(k)) peJudet.set(k, []); peJudet.get(k)!.push(d) }
-  const f2 = (d: Doc): Fuel => ({ day: d.day, petrol: d.petrol, diesel: d.diesel, lpg: d.lpg ?? 0, note: d.cheapestNote || undefined })
-  for (const [k, l] of peJudet) { const j = judById.get(k); if (j) fuel.set(j.slug, { azi: f2(l[0]), ieri: l[1] ? f2(l[1]) : null }) }
+  const f2 = (d: Doc): Fuel => ({ day: d.day, petrol: d.petrol, diesel: d.diesel, lpg: d.lpg ?? 0, note: d.cheapestNote || undefined, ...prov(d) })
+  // preturi „vechi”: ziua lor e mai veche de ieri (peste 48 de ore)
+  const ieri = ziPlus(azi, -1)
+  for (const [k, l] of peJudet) { const j = judById.get(k); if (j) fuel.set(j.slug, { azi: f2(l[0]), ieri: l[1] ? f2(l[1]) : null, vechi: l[0].day < ieri }) }
+  const proaspete = [...fuel.values()].filter((f) => !f.vechi)
+  const baza = proaspete.length ? proaspete : [...fuel.values()]
   const medie = (sel: (f: { azi: Fuel; ieri: Fuel | null }) => Fuel | null): [number, number, number] | null => {
-    const l = [...fuel.values()].map(sel).filter(Boolean) as Fuel[]
+    const l = baza.map(sel).filter(Boolean) as Fuel[]
     if (!l.length) return null
     const m = (f: (x: Fuel) => number) => Math.round((l.reduce((a, x) => a + f(x), 0) / l.length) * 100) / 100
     return [m((x) => x.petrol), m((x) => x.diesel), m((x) => x.lpg)]
   }
-  const fuelNat = { azi: medie((f) => f.azi) || [0, 0, 0] as [number, number, number], ieri: medie((f) => f.ieri) }
+  const ultim = [...baza].sort((a, b) => +b.azi.upd - +a.azi.upd)[0]
+  const fuelNat = {
+    azi: medie((f) => f.azi) || [0, 0, 0] as [number, number, number], ieri: medie((f) => f.ieri),
+    vechi: !proaspete.length && baza.length ? baza.map((f) => f.azi.day).sort().reverse()[0] : '',
+    prov: ultim ? { src: ultim.azi.src, upd: ultim.azi.upd, imp: ultim.azi.imp } : null,
+  }
 
   const jobs: Job[] = (jb.docs as Doc[]).filter((d) => !d.deadline || Date.parse(d.deadline) > acum - 864e5).map((d) => {
     const cty = judById.get(idDe(d.county) as number) as Jud

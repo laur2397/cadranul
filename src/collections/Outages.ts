@@ -2,7 +2,7 @@ import type { CollectionConfig } from 'payload'
 import { autentificat, editorSauAdmin, public_ } from '../access/roluri'
 import { HOOKURI_DATE } from '../hooks/invalideaza'
 import { regiuneDinJudet } from '../hooks/regiune'
-import { campJudet, campRegiuneAuto, campSursa, campuriHarta, campuriInterval } from './campuri'
+import { campJudet, campRegiuneAuto, campSursa, campuriHarta, campuriImport, campuriInterval, marcheazaEditareUmana } from './campuri'
 
 // Avarii si opriri programate: apa, curent, gaz (stratul Avarii, cardul „Avarii”).
 export const Outages: CollectionConfig = {
@@ -10,7 +10,7 @@ export const Outages: CollectionConfig = {
   labels: { singular: 'Avarie / oprire', plural: 'Avarii: apă, curent, gaz' },
   admin: { useAsTitle: 'title', group: 'Date utile', defaultColumns: ['kind', 'title', 'city', 'until'] },
   access: { read: public_, create: autentificat, update: autentificat, delete: editorSauAdmin },
-  hooks: { beforeChange: [regiuneDinJudet], ...HOOKURI_DATE },
+  hooks: { beforeChange: [regiuneDinJudet, marcheazaEditareUmana], ...HOOKURI_DATE },
   fields: [
     {
       type: 'row', fields: [
@@ -22,6 +22,6 @@ export const Outages: CollectionConfig = {
     campJudet,
     { name: 'city', label: 'Localitatea', type: 'text', required: true },
     campRegiuneAuto,
-    ...campuriHarta, ...campuriInterval, campSursa,
+    ...campuriHarta, ...campuriInterval, campSursa, ...campuriImport,
   ],
 }

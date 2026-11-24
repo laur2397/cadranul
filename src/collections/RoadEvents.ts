@@ -2,7 +2,7 @@ import type { CollectionConfig } from 'payload'
 import { autentificat, editorSauAdmin, public_ } from '../access/roluri'
 import { HOOKURI_DATE } from '../hooks/invalideaza'
 import { regiuneDinJudet } from '../hooks/regiune'
-import { campJudet, campRegiuneAuto, campSursa, campuriHarta, campuriInterval, OPTIUNI_TRONSON } from './campuri'
+import { campJudet, campRegiuneAuto, campSursa, campuriHarta, campuriImport, campuriInterval, marcheazaEditareUmana, OPTIUNI_TRONSON } from './campuri'
 
 // Starea drumurilor (stratul Drumuri, sectiunea „Starea drumurilor”, pagina /drumuri).
 // Sursa reala la lansare: CNAIR / Infotrafic, prin importul descris in docs/fluxuri-date.md.
@@ -11,7 +11,7 @@ export const RoadEvents: CollectionConfig = {
   labels: { singular: 'Eveniment rutier', plural: 'Drumuri: evenimente' },
   admin: { useAsTitle: 'road', group: 'Date utile', defaultColumns: ['road', 'segment', 'status', 'county', 'until'], description: 'Drumuri închise, lucrări, cozi. Cele expirate dispar singure de pe site.' },
   access: { read: public_, create: autentificat, update: autentificat, delete: editorSauAdmin },
-  hooks: { beforeChange: [regiuneDinJudet], ...HOOKURI_DATE },
+  hooks: { beforeChange: [regiuneDinJudet, marcheazaEditareUmana], ...HOOKURI_DATE },
   fields: [
     {
       type: 'row', fields: [
@@ -31,6 +31,6 @@ export const RoadEvents: CollectionConfig = {
     },
     campJudet, campRegiuneAuto,
     { name: 'mapSegment', label: 'Tronsoanele colorate pe hartă', type: 'select', hasMany: true, options: OPTIUNI_TRONSON },
-    ...campuriHarta, ...campuriInterval, campSursa,
+    ...campuriHarta, ...campuriInterval, campSursa, ...campuriImport,
   ],
 }

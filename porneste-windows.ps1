@@ -1,5 +1,7 @@
 # Porneste Cadranul pe Windows, fara instalari in sistem si fara drepturi de administrator.
 # Tot ce descarca sta in %USERPROFILE%\.cadranul-tools. Oprire: Ctrl+C sau inchizi fereastra.
+# Optional: porneste-windows.cmd -CuSurse  porneste si importurile automate de date (ANM, OPCOM; docs/fluxuri-date.md)
+param([switch]$CuSurse)
 $ErrorActionPreference = 'Stop'
 Set-Location -Path $PSScriptRoot
 $T = Join-Path $env:USERPROFILE '.cadranul-tools'
@@ -70,11 +72,16 @@ NEXT_PUBLIC_ADS_ON_REFUSAL=none
   $marker = Join-Path $Pg 'seed-facut-utf8'
   if (-not (Test-Path $marker)) { & npm run seed; if ($LASTEXITCODE) { throw 'seed a esuat' }; New-Item $marker | Out-Null }
 
-  # 5. Porneste site-ul
+  # 5. Porneste site-ul (cu -CuSurse: si worker-ul importurilor automate, jurnal in .cadranul-tools\surse.log)
+  if ($CuSurse) {
+    $wProc = Start-Process -FilePath 'cmd.exe' -ArgumentList @('/c', 'npm run surse:worker > "' + (Join-Path $T 'surse.log') + '" 2>&1') -WindowStyle Hidden -PassThru
+    Write-Host 'Importurile automate ruleaza (stare: npm run surse:status)' -ForegroundColor Green
+  }
   Start-Job { Start-Sleep 25; Start-Process 'http://localhost:3000' } | Out-Null
   Write-Host '== Site: http://localhost:3000   Redactie: http://localhost:3000/admin   Oprire: Ctrl+C ==' -ForegroundColor Green
   & npm run dev
 }
 finally {
+  if ($wProc -and -not $wProc.HasExited) { & taskkill /T /F /PID $wProc.Id 2>&1 | Out-Null }
   if ($pgProc -and -not $pgProc.HasExited) { Stop-Process -Id $pgProc.Id -Force -ErrorAction SilentlyContinue }
 }
