@@ -8,11 +8,14 @@ export const USER_AGENT = () =>
 export type FetchFn = typeof fetch
 export type CacheHttp = Record<string, { etag?: string; lastModified?: string }>
 
+/** Pagini de blocare / validare anti-robot / login: le recunoastem si le raportam, nu le ocolim. */
+export const BLOCAJ = /Validation request|User validation required|captcha|cf-challenge|Just a moment\.\.\.|Access denied|Attention Required|<title>\s*Blocked\s*<\/title>|Request blocked/i
+
 const asteapta = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
 // ——— robots.txt (RFC 9309, varianta simpla: grupul nostru sau „*”, reguli Allow/Disallow pe prefix, cea mai lunga castiga)
 type Reguli = { allow: string[]; disallow: string[] }
-const robotsCache = new Map<string, { t: number; r: Reguli | 'tot-interzis' }>()
+const robotsCache = new Map<string, { t: number; r: Reguli | 'tot-interzis' | 'inaccesibil' }>()
 
 export function parseazaRobots(txt: string, agent = 'cadranulbot'): Reguli {
   const grupuri: { agenti: string[]; r: Reguli }[] = []
@@ -46,7 +49,7 @@ export function permis(reguli: Reguli, cale: string) {
   return !!a && a.length >= d.length
 }
 
-async function robotsPermite(url: string, f: FetchFn): Promise<boolean> {
+async function robotsPermite(url: string, f: FetchFn): Promise<true | string> {
   const u = new URL(url)
   const k = u.origin
   const c = robotsCache.get(k)
@@ -55,13 +58,14 @@ async function robotsPermite(url: string, f: FetchFn): Promise<boolean> {
     try {
       const res = await f(`${k}/robots.txt`, { headers: { 'User-Agent': USER_AGENT() }, signal: AbortSignal.timeout(15000) })
       // 4xx = nu exista reguli; 5xx = serverul nu poate spune, deci nu descarcam (RFC 9309)
-      r = res.ok ? parseazaRobots(await res.text()) : res.status >= 500 ? 'tot-interzis' : { allow: [], disallow: [] }
+      r = res.ok ? parseazaRobots(await res.text()) : res.status >= 500 ? 'inaccesibil' : { allow: [], disallow: [] }
     } catch {
-      r = 'tot-interzis'
+      r = 'inaccesibil'
     }
     robotsCache.set(k, { t: Date.now(), r })
   }
-  return r !== 'tot-interzis' && permis(r, u.pathname + u.search)
+  if (r === 'inaccesibil' || r === 'tot-interzis') return `serverul ${u.host} nu răspunde (nici la robots.txt) din această rețea: verifică de pe serverul de producție (unele site-uri publice răspund doar din România)`
+  return permis(r, u.pathname + u.search) || `robots.txt de la ${u.host} interzice ${u.pathname}`
 }
 export const golesteRobots = () => robotsCache.clear()
 
@@ -76,8 +80,8 @@ function decodeaza(buf: ArrayBuffer, tip: string | null) {
  */
 export function descarcator(f: FetchFn, cache: CacheHttp, opt: { timeoutMs?: number; incercari?: number; robots?: boolean; pauzaMs?: number } = {}) {
   const timeoutMs = opt.timeoutMs ?? 20000, incercari = opt.incercari ?? 3, pauza = opt.pauzaMs ?? 2000
-  return async (url: string, o: { conditionat?: boolean; accept?: string } = {}): Promise<Descarcare> => {
-    if (opt.robots !== false && !(await robotsPermite(url, f))) throw new Error(`robots.txt nu permite descărcarea (${new URL(url).origin}) sau nu a putut fi citit`)
+  return async (url: string, o: { conditionat?: boolean; accept?: string; binar?: boolean } = {}): Promise<Descarcare> => {
+    if (opt.robots !== false) { const p = await robotsPermite(url, f); if (p !== true) throw new Error(p) }
     const h: Record<string, string> = { 'User-Agent': USER_AGENT(), 'Accept-Language': 'ro-RO,ro;q=0.9' }
     if (o.accept) h.Accept = o.accept
     const c = cache[url]
@@ -94,11 +98,18 @@ export function descarcator(f: FetchFn, cache: CacheHttp, opt: { timeoutMs?: num
           await asteapta(Number.isFinite(ra) && ra > 0 ? Math.min(ra * 1000, 60000) : pauza * 2 ** i)
           continue
         }
-        if (!res.ok) throw Object.assign(new Error(`HTTP ${res.status} de la ${new URL(url).host}`), { definitiv: true })
-        const text = decodeaza(await res.arrayBuffer(), res.headers.get('content-type'))
+        if (!res.ok) {
+          const corp = await res.text().catch(() => '')
+          const blocat = BLOCAJ.test(corp.slice(0, 4000))
+          throw Object.assign(new Error(blocat
+            ? `${new URL(url).host} a răspuns cu o pagină de blocare / validare anti-robot (HTTP ${res.status}). Nu o ocolim; sursa trebuie să permită accesul automat.`
+            : `HTTP ${res.status} de la ${new URL(url).host}${res.status === 404 ? ' (pagina nu există: adresa s-a schimbat?)' : ''}`), { definitiv: true })
+        }
+        const buf = await res.arrayBuffer()
+        const text = o.binar ? '' : decodeaza(buf, res.headers.get('content-type'))
         const etag = res.headers.get('etag') || undefined, lastModified = res.headers.get('last-modified') || undefined
         if (etag || lastModified) cache[url] = { etag, lastModified }
-        return { status: res.status, text, url, neschimbat: false, etag, lastModified }
+        return { status: res.status, text, url, neschimbat: false, etag, lastModified, ...(o.binar ? { bytes: new Uint8Array(buf) } : {}) }
       } catch (e) {
         if ((e as { definitiv?: boolean }).definitiv) throw e
         ultima = e

@@ -1,0 +1,19 @@
+<html><body style="font-family:times;color:white;font-size:15px;" bgcolor="#405F8D"><title>Validation request</title><h3 align="center">User validation required to continue..</h3><hr>    <script type="text/javascript">
+      var verifyCallback = function(response) {
+        document.captcha_form.submit();
+      };
+      var onloadCallback = function() {
+        grecaptcha.render('example3', {
+          'callback' : verifyCallback,
+          'sitekey' : '6Lc7kKkZAAAAAHCwsOcsS_94zcI5BSGuAe9VF5DO',
+          'theme' : 'dark'
+        });
+      };
+    </script>
+    <form name="captcha_form" action="/captcha_resp" method="POST" enctype="application/x-www-form-urlencoded">
+      <div id="example3"></div>
+      <br>
+    </form>
+    <script src="https://www.google.com/recaptcha/api.js?onload=onloadCallback&render=explicit" async defer>
+    </script>
+</p></body></html><p>[ Refresh the page to generate a new image. ]</p><p>Note:<ul><li>If you get here while trying to submit a form, you may have to re-submit the form.</li><li>Access to this domain may need the browser to have javascript and cookie support enabled. </li></ul></p><hr><br><em>Validation needed due to the detection of invalid input from this client IP address, error code : <b><font color=yellow>338</font></b></em>                                                                                                             

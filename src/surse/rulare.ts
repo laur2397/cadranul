@@ -45,11 +45,12 @@ export async function asiguraRegistru(payload: Payload): Promise<Map<string, Doc
     if (!d) {
       const nou = await payload.create({
         collection: 'data-sources', overrideAccess: true, context: CTX,
-        data: { key: c.key, ...statice, enabled: c.pornitImplicit && c.legal !== 'needs_permission', legalStatus: c.legal, url: c.url, termsUrl: c.termsUrl, attribution: c.atribuire, notes: c.note || '', consecutiveFailures: 0 } as never,
+        data: { key: c.key, ...statice, enabled: c.pornitImplicit && c.legal !== 'needs_permission', legalStatus: c.legal, url: '', termsUrl: c.termsUrl, attribution: c.atribuire, notes: c.note || '', consecutiveFailures: 0 } as never,
       })
       peKey.set(c.key, nou as Doc)
-    } else if (d.name !== statice.name || d.schedule !== statice.schedule || (d.requestLetter || '') !== statice.requestLetter) {
-      peKey.set(c.key, await payload.update({ collection: 'data-sources', id: d.id, data: statice as never, overrideAccess: true, context: CTX }) as Doc)
+    } else if (d.name !== statice.name || d.schedule !== statice.schedule || (d.requestLetter || '') !== statice.requestLetter || !d.notes || !d.termsUrl) {
+      const extra = { ...(!d.notes ? { notes: c.note || '' } : {}), ...(!d.termsUrl ? { termsUrl: c.termsUrl } : {}), ...(!d.attribution ? { attribution: c.atribuire } : {}) }
+      peKey.set(c.key, await payload.update({ collection: 'data-sources', id: d.id, data: { ...statice, ...extra } as never, overrideAccess: true, context: CTX }) as Doc)
     }
   }
   return peKey
@@ -181,7 +182,7 @@ export async function ruleazaConector(payload: Payload, key: string, opt: Optiun
   const descarca = descarcator(opt.fetchImpl || fetch, cache, { robots: opt.robots ?? !opt.fetchImpl, pauzaMs: opt.fetchImpl ? 1 : 2000 })
   let esecuri = Number(reg.consecutiveFailures) || 0
   try {
-    const rez = await con.ruleaza({ url: reg.url || con.url, acum, descarca, log })
+    const rez = await con.ruleaza({ url: reg.url || con.url, acum, descarca, log, pauzaMs: opt.fetchImpl ? 0 : undefined })
     if (rez.neschimbat) {
       raport.status = 'neschimbat'; raport.mesaj = 'sursa nu are nimic nou (304)'
     } else {

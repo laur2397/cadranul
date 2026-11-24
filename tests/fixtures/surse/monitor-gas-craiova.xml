@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<GasItemsResult xmlns="http://schemas.datacontract.org/2004/07/pmonsvc.Models">
+<Products><GasProduct><Id>11</Id><Name>Benzina standard</Name></GasProduct><GasProduct><Id>21</Id><Name>Motorina standard</Name></GasProduct><GasProduct><Id>31</Id><Name>GPL</Name></GasProduct></Products>
+<Networks><GasNetwork><Id>1</Id><Name>OMV Petrom</Name></GasNetwork><GasNetwork><Id>2</Id><Name>Lukoil</Name></GasNetwork></Networks>
+<Stations>
+<GasStation><Id>501</Id><Name>Petrom Craiova Calea Severinului</Name><NetworkId>1</NetworkId><Addr><AddrString>Calea Severinului 40, Craiova</AddrString><Location><Lat>44.33</Lat><Lon>23.77</Lon></Location><UatId>4135</UatId></Addr></GasStation>
+<GasStation><Id>502</Id><Name>Lukoil Craiova Bariera Valcii</Name><NetworkId>2</NetworkId><Addr><AddrString>Str. Bariera Valcii 2, Craiova</AddrString><UatId>4135</UatId></Addr></GasStation>
+</Stations>
+<Items>
+<GasItem><Price>7.49</Price><ProductId>11</ProductId><StationId>501</StationId><UpdateDate>2026-11-24T08:10:00</UpdateDate></GasItem>
+<GasItem><Price>7.62</Price><ProductId>21</ProductId><StationId>501</StationId><UpdateDate>2026-11-24T08:10:00</UpdateDate></GasItem>
+<GasItem><Price>3.69</Price><ProductId>31</ProductId><StationId>501</StationId><UpdateDate>2026-11-24T08:10:00</UpdateDate></GasItem>
+<GasItem><Price>7.55</Price><ProductId>11</ProductId><StationId>502</StationId><UpdateDate>2026-11-24T07:55:00</UpdateDate></GasItem>
+<GasItem><Price>7.66</Price><ProductId>21</ProductId><StationId>502</StationId><UpdateDate>2026-11-24T07:55:00</UpdateDate></GasItem>
+</Items>
+</GasItemsResult>

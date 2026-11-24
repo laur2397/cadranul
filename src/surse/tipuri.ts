@@ -1,6 +1,6 @@
 // Tipurile comune ale conectorilor de date (src/surse).
 
-export type StatutLegal = 'public_official' | 'needs_permission' | 'permission_granted' | 'partner_api'
+export type StatutLegal = 'public_official' | 'public_notice' | 'needs_permission' | 'permission_granted' | 'partner_api'
 export type Colectie = 'weather-alerts' | 'energy-prices' | 'fuel-prices' | 'road-events' | 'outages'
 
 /** Cand ruleaza: la fiecare N minute, sau zilnic dupa o ora (ora Romaniei) cu reincercari pana la `pana`. */
@@ -17,14 +17,16 @@ export type Rezultat = {
   incomplet?: string
 }
 
-export type Descarcare = { status: number; text: string; url: string; neschimbat: boolean; etag?: string; lastModified?: string }
-export type Descarca = (url: string, opt?: { conditionat?: boolean; accept?: string }) => Promise<Descarcare>
+export type Descarcare = { status: number; text: string; url: string; neschimbat: boolean; etag?: string; lastModified?: string; bytes?: Uint8Array }
+export type Descarca = (url: string, opt?: { conditionat?: boolean; accept?: string; binar?: boolean }) => Promise<Descarcare>
 
 export type ContextRulare = {
   url: string
   acum: Date
   descarca: Descarca
   log: (m: string) => void
+  /** pauza intre cereri succesive la aceeasi sursa (implicit 1,5 s; 0 in teste) */
+  pauzaMs?: number
 }
 
 export type Conector = {

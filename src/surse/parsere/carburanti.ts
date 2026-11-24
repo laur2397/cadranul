@@ -20,8 +20,8 @@ const PRODUS = (s: string): 'petrol' | 'diesel' | 'lpg' | null => {
 }
 const pret = (s: string) => { const n = Number(String(s).replace(/\s|lei/gi, '').replace(',', '.')); return n > 2 && n < 30 ? n : NaN }
 
-export function parseazaCarburanti(text: string, acum = new Date(), maxVechimeOre = 48): Element[] {
-  const r = randuri(text)
+export function parseazaCarburanti(text: string | Record<string, string>[], acum = new Date(), maxVechimeOre = 48): Element[] {
+  const r = typeof text === 'string' ? randuri(text) : text
   if (!r.length) return []
   if (!('judet' in r[0]) && !('county' in r[0])) throw new Error('Carburanți: lipsește coloana „judet”.')
   type Statie = { loc: string; adr: string; retea: string; p: number }
@@ -47,7 +47,7 @@ export function parseazaCarburanti(text: string, acum = new Date(), maxVechimeOr
       externalId: `carburanti:${j}:${day}`,
       data: {
         county: j, day, petrol, diesel, lpg: medie(v.lpg),
-        cheapestNote: ief ? `${[ief.loc, ief.adr].filter(Boolean).join(', ')}${ief.retea ? ` (${ief.retea})` : ''}: ${ief.p.toFixed(2).replace('.', ',')} lei` : null,
+        cheapestNote: ief ? `${(ief.adr && ief.loc && cheie(ief.adr).includes(cheie(ief.loc)) ? [ief.adr] : [ief.loc, ief.adr]).filter(Boolean).join(', ')}${ief.retea ? ` (${ief.retea})` : ''}: ${ief.p.toFixed(2).replace('.', ',')} lei` : null,
       },
     })
   }

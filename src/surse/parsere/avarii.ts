@@ -15,12 +15,12 @@ const TITLU: Record<TipAvarie, string> = { power: 'Curent oprit', water: 'Apă o
 const ziSapt = (d: Date) => new Intl.DateTimeFormat('ro-RO', { timeZone: 'Europe/Bucharest', weekday: 'long' }).format(d)
 const ora = (d: Date) => new Intl.DateTimeFormat('ro-RO', { timeZone: 'Europe/Bucharest', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(d)
 
-export function parseazaAvarii(text: string, tip: TipAvarie, opt: { acum?: Date; judetImplicit?: string; prefix: string }): Element[] {
+export function parseazaAvarii(text: string | Record<string, string>[], tip: TipAvarie, opt: { acum?: Date; judetImplicit?: string; prefix: string }): Element[] {
   const acum = opt.acum || new Date()
   const an = Number(new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Bucharest', year: 'numeric' }).format(acum))
   const out: Element[] = []
   let ziAnt = ''
-  for (const r of randuri(text)) {
+  for (const r of typeof text === 'string' ? randuri(text) : text) {
     const zi = camp(r, 'data', 'data_de_intrerupere', 'ziua') || ziAnt
     ziAnt = zi
     const interval = camp(r, 'interval', 'interval_orar', 'ore')

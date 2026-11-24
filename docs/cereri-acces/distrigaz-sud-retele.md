@@ -1,5 +1,7 @@
-<!-- CIORNĂ. Nu a fost trimisă. Se completează câmpurile dintre paranteze drepte și se trimite de pe adresa oficială a firmei editoare.
-     După răspuns: în /admin › Surse de date se trec statutul legal („Acord primit”), adresa fluxului și se pornește sursa. -->
+<!-- CIORNĂ OPȚIONALĂ. Nu a fost trimisă. Sursa se preia deja automat din paginile publice, cu atribuire (decizia editorului,
+     24.11.2026, statutul „public_notice”). Scrisoarea cere un flux structurat (mai sigur decât citirea paginilor) și confirmarea
+     condițiilor. Se completează câmpurile dintre paranteze drepte și se trimite de pe adresa oficială a firmei editoare.
+     După răspuns: în /admin › Surse de date se trec statutul „Acord primit” și adresa fluxului primit. -->
 
 **[Denumire firma editoare]**
 [Sediul social] · CUI [cod fiscal] · Nr. Reg. Com. [număr]
@@ -14,7 +16,7 @@ Către: **Distrigaz Sud Rețele S.R.L., Departamentul Comunicare**
 
 Stimate doamne, stimați domni,
 
-Suntem editorul publicației online „Cadranul”, cu ediții regionale. Pe hartă arătăm cititorilor unde și când se oprește gazul. Publicați aceste informații prin comunicate pe site; am dori să le preluăm automat și corect, doar cu acordul dumneavoastră.
+Suntem editorul publicației online „Cadranul”, cu ediții regionale. Pe hartă arătăm cititorilor unde și când se oprește gazul. Publicați aceste informații prin comunicate pe site; le preluăm automat din pagina publică, cu menționarea sursei, și am prefera un format structurat.
 
 **Ce date ne-ar folosi**
 
@@ -35,7 +37,7 @@ Informațiile despre întreruperile programate sunt deja făcute publice de dumn
 
 **Ce vă rugăm**
 
-1. Să ne confirmați în scris dacă putem prelua automat aceste informații și în ce condiții (licență, atribuire, frecvență maximă).
+1. Să ne comunicați condițiile în care preferați să fie preluate aceste informații (atribuire, frecvență maximă) sau dacă doriți să oprim preluarea; o oprim imediat la cerere.
 2. Dacă există sau se poate pune la dispoziție un flux structurat (API, RSS, XML, JSON sau CSV), să ne indicați adresa și o persoană de contact tehnic.
 3. Dacă preferați un acord scris (protocol de colaborare), suntem deschiși să îl semnăm.
 

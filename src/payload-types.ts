@@ -791,7 +791,7 @@ export interface DataSource {
   key: string;
   name: string;
   enabled?: boolean | null;
-  legalStatus: 'public_official' | 'needs_permission' | 'permission_granted' | 'partner_api';
+  legalStatus: 'public_official' | 'public_notice' | 'needs_permission' | 'permission_granted' | 'partner_api';
   /**
    * Se poate corecta aici dacă sursa își mută pagina. Gol = adresa din cod.
    */

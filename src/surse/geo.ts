@@ -98,3 +98,14 @@ export function localitate(s: string): Loc | null {
   const k = cheie(s).replace(/^(mun|municipiul|orasul|oras|loc|localitatea|com|comuna|sat|statiunea|zona)\s+/, '')
   return LOCALITATI.get(k) || null
 }
+
+/** Resedintele de judet (pentru sursele interogate pe oras, ex. Monitorul preturilor) */
+export const RESEDINTE: Record<string, string> = {
+  alba: 'Alba Iulia', arad: 'Arad', arges: 'Pitești', bacau: 'Bacău', bihor: 'Oradea', 'bistrita-nasaud': 'Bistrița', botosani: 'Botoșani',
+  braila: 'Brăila', brasov: 'Brașov', bucuresti: 'București', buzau: 'Buzău', calarasi: 'Călărași', 'caras-severin': 'Reșița', cluj: 'Cluj-Napoca',
+  constanta: 'Constanța', covasna: 'Sfântu Gheorghe', dambovita: 'Târgoviște', dolj: 'Craiova', galati: 'Galați', giurgiu: 'Giurgiu',
+  gorj: 'Târgu Jiu', harghita: 'Miercurea Ciuc', hunedoara: 'Deva', ialomita: 'Slobozia', iasi: 'Iași', ilfov: 'Buftea', maramures: 'Baia Mare',
+  mehedinti: 'Drobeta-Turnu Severin', mures: 'Târgu Mureș', neamt: 'Piatra Neamț', olt: 'Slatina', prahova: 'Ploiești', salaj: 'Zalău',
+  'satu-mare': 'Satu Mare', sibiu: 'Sibiu', suceava: 'Suceava', teleorman: 'Alexandria', timis: 'Timișoara', tulcea: 'Tulcea', valcea: 'Râmnicu Vâlcea',
+  vaslui: 'Vaslui', vrancea: 'Focșani',
+}

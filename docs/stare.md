@@ -19,14 +19,15 @@
 - Importurile automate de date (`src/surse`, `docs/fluxuri-date.md`): registru „Surse de date” în /admin cu comutator de oprire
   și statut legal, jurnal pe rulări, alertă după eșecuri repetate, worker separat (`npm run surse:worker`), rulare manuală și
   simulare (`npm run surse -- <sursă|all> [--dry-run]`). Pe site: „Sursa: …, actualizat …”, datele expirate dispar, carburanții
-  mai vechi de 48 h apar estompați. **Automat acum: ANM (coduri meteo pe județe) și OPCOM (prețul pe ore).**
-  Gata, dar oprite până la acordul sursei: IGPR Infotrafic, CNAIR, Consiliul Concurenței (carburanți), Distribuție Energie Oltenia,
-  Compania de Apă Oltenia, Distrigaz Sud Rețele (cererile: `docs/cereri-acces/`).
+  mai vechi de 48 h apar estompați. **Toate cele 8 surse sunt pornite** (decizia editorului: anunțurile publice se preiau automat, cu atribuire).
+  Cu date reale verificate de aici: ANM, OPCOM, Compania de Apă Oltenia. De confirmat la prima rulare pe serverul din România
+  (nu răspund din afara țării): IGPR Infotrafic, CNAIR, Monitorul prețurilor, Distrigaz. Distribuție Energie Oltenia cere
+  validare anti-robot: raportată, nu ocolită. Lista de verificat: `docs/fluxuri-date.md`, „Prima rulare”.
 
 ## Doar demonstrativ
 - Tot conținutul (45 de articole, autori, firme, joburi, farmacii, reclame) este fictiv. Orele sunt relative la momentul
   `npm run seed`; după o zi, rulează din nou seed-ul ca demo-ul să pară „de azi”. Seed-ul ȘTERGE baza.
-- Cifrele de carburanți, drumuri, vreme (orașe), avarii sunt de probă până la acordul surselor (vezi `docs/fluxuri-date.md`).
+- Cifrele de carburanți, drumuri, vreme (orașe), avarii din seed sunt de probă; cele importate apar cu „Sursa: …” (vezi `docs/fluxuri-date.md`).
   Codurile ANM și prețurile OPCOM vin din import când worker-ul rulează; zilele de energie scrise de seed au întâietate
   (importul nu suprascrie ce n-a scris el): pentru date reale de energie, șterge zilele demo din /admin.
 - Reclamele afișate sunt machete; în producție locurile se umplu doar din Ad Manager/AdSense, după acord.
@@ -34,15 +35,15 @@
 - „Cele mai citite” se alege manual până la conectarea statisticilor.
 
 ## Ce urmează
-1. Trimiterea cererilor de acces (`docs/cereri-acces/`, de pe adresa firmei editoare) și pornirea surselor pe măsură ce vin
-   răspunsurile; verificarea parserului nowcasting ANM la primul cod real; worker-ul ca serviciu pe server.
+1. Prima rulare a importurilor pe serverul de producție (lista din `docs/fluxuri-date.md`), worker-ul ca serviciu; opțional,
+   cererile de flux structurat din `docs/cereri-acces/`; verificarea parserului nowcasting ANM la primul cod real.
 2. Furnizor de e-mail pentru newsletter; stocare imagini (S3/R2) pentru încărcările din /admin.
 3. Platformă de consimțământ certificată Google (TCF) înainte de AdSense/Ad Manager în UE.
 4. Găzduire, domeniu, conturi pe firma editoare (registrul `audit/registru-proprietate.yaml`).
 
 ## Decizii ale proprietarului
-- Trimiterea celor 6 cereri de acces la date (IGPR, CNAIR, Consiliul Concurenței, Distribuție Energie Oltenia, Compania de Apă
-  Oltenia, Distrigaz Sud Rețele) și adresa de contact din User-Agent (`SURSE_CONTACT`).
+- Decis (24.11.2026): drumurile, carburanții și avariile se preiau automat din paginile publice, cu atribuire. Rămân de hotărât:
+  trimiterea cererilor opționale de flux structurat (`docs/cereri-acces/`) și adresa de contact din User-Agent (`SURSE_CONTACT`).
 - Firma editoare și datele ei (subsol, pagini legale, JSON-LD, registrul de proprietate).
 - Reclame ne-personalizate și după „Refuz tot”? (`NEXT_PUBLIC_ADS_ON_REFUSAL`, implicit „nu”), de hotărât cu avocatul.
 - Verificarea paginilor legale de către avocat (bifa „Verificată de avocat” în /admin scoate nota de model).

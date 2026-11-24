@@ -9,7 +9,10 @@ import { kmDin, normDrum, potrivesteTronson } from '../../src/surse/tronsoane'
 import { judetDinCod, judetDinNume, localitate } from '../../src/surse/geo'
 import { descarcator, parseazaRobots, permis, golesteRobots } from '../../src/surse/http'
 import { eScadent } from '../../src/surse/rulare'
-import { ANM, OPCOM, CONECTORI } from '../../src/surse/conectori'
+import { ANM, OPCOM, CONECTORI, linkuri, verificaBlocaj } from '../../src/surse/conectori'
+import { randuriDinPdf } from '../../src/surse/parsere/deo-pdf'
+import { anuntInElemente, anunturiDinHtml, citesteRss } from '../../src/surse/parsere/anunturi'
+import { idUat, statiiSiPreturi } from '../../src/surse/parsere/monitor'
 import { RETEA } from '../../src/shared/harta'
 
 const F = (n: string) => readFileSync(`tests/fixtures/surse/${n}`, 'utf8')
@@ -181,17 +184,16 @@ describe('descarcari politicoase', () => {
     expect(a.text).toBe('<avertizari/>')
     expect(cereri.find((c) => c.url.endsWith('x.xml'))!.h['User-Agent']).toMatch(/^CadranulBot\/1\.0/)
     expect((await dl('https://exemplu.ro/x.xml')).neschimbat).toBe(true)
-    await expect(dl('https://interzis.ro/x')).rejects.toThrow(/robots/)
+    await expect(dl('https://interzis.ro/x')).rejects.toThrow(/robots.txt de la interzis.ro interzice/)
   })
 })
 
 describe('registru si planificare', () => {
-  it('fiecare sursa care asteapta acordul are cerere, si niciuna nu porneste implicit', () => {
+  it('toate sursele sunt pornite implicit, cu atribuire; scrisorile raman optionale', () => {
     for (const c of CONECTORI) {
-      if (c.legal === 'needs_permission') { expect(c.pornitImplicit).toBe(false); expect(c.cerere).toMatch(/^docs\/cereri-acces\/.+\.md$/); expect(readFileSync(c.cerere!, 'utf8')).toContain('[Denumire firma editoare]') }
-      expect(c.atribuire).toBeTruthy()
+      expect(c.pornitImplicit).toBe(true); expect(c.legal).not.toBe('needs_permission'); expect(c.url).toMatch(/^https:\/\//); expect(c.atribuire).toBeTruthy()
+      if (c.cerere) expect(readFileSync(c.cerere, 'utf8')).toContain('[Denumire firma editoare]')
     }
-    expect(CONECTORI.filter((c) => c.pornitImplicit).map((c) => c.key).sort()).toEqual(['anm-avertizari', 'opcom-pzu'])
   })
   it('ANM la 10 minute, cu asteptare dubla dupa esecuri', () => {
     const t = Date.parse('2026-11-24T10:00:00Z')
@@ -208,5 +210,51 @@ describe('registru si planificare', () => {
     expect(eScadent(OPCOM, { ...azi, lastRun: z('13:20').toISOString() }, z('13:41'))).toBe(true)
     expect(eScadent(OPCOM, { lastRun: z('13:41').toISOString(), lastSuccess: z('13:41').toISOString() }, z('16:00'))).toBe(false)
     expect(eScadent(OPCOM, {}, z('08:00'))).toBe(true) // prima rulare: imediat
+  })
+})
+
+describe('anunturi publice (decizia editorului)', () => {
+  it('Distributie Oltenia: PDF-ul saptamanal real -> randuri cu data, interval, localitate', async () => {
+    const r = await randuriDinPdf(new Uint8Array(readFileSync('tests/fixtures/surse/deo-dolj-2023-12-11.pdf')))
+    expect(r.judet).toBe('dolj'); expect(r.an).toBe(2023)
+    expect(r.randuri.length).toBeGreaterThan(40)
+    expect(r.randuri[0]).toMatchObject({ data: '11.12.2023', interval: '09:00 - 17:00', localitate: 'Cetate', zona: 'PTCZ SPA 1 Cetate' })
+    // continuarea zilei 11.12 pe pagina 2 (fara celula de data), apoi 12.12
+    expect(r.randuri.find((x) => x.localitate === 'Ostroveni')!.data).toBe('11.12.2023')
+    expect(r.randuri.find((x) => x.localitate === 'Dăbuleni')!.data).toBe('12.12.2023')
+    expect(r.randuri.find((x) => x.localitate === 'Plenița')!.data).toBe('14.12.2023')
+    const el = parseazaAvarii(r.randuri, 'power', { acum: new Date('2023-12-10T12:00:00+02:00'), prefix: 'avarii-deo' }).map((e) => d(e.data))
+    expect(el[0]).toMatchObject({ county: 'dolj', city: 'Cetate', from: '2023-12-11T07:00:00.000Z', until: '2023-12-11T15:00:00.000Z', title: 'Curent oprit luni, 09:00–17:00' })
+  })
+  it('Distributie Oltenia: pagina de validare anti-robot (reala) -> eroare clara, fara ocolire', () => {
+    expect(() => verificaBlocaj(F('deo-pagina-validare.html'), 'Distribuție Energie Oltenia')).toThrow(/anti-robot.*Nu o ocolim/)
+    expect(() => verificaBlocaj(F('deo-pagina-blocat.html'), 'Distribuție Energie Oltenia')).toThrow(/anti-robot/)
+  })
+  it('Compania de Apa Oltenia: fluxul RSS real', () => {
+    const l = citesteRss(F('apa-oltenia-anunturi-2026-11-24.xml'))
+    expect(l).toHaveLength(10)
+    const el = l.flatMap((a) => anuntInElemente(a, 'water', { acum: new Date('2026-11-24T12:00:00+02:00'), prefix: 'a', judetImplicit: 'dolj', localitateImplicita: 'Craiova' })).map((e) => d(e.data))
+    expect(el).toHaveLength(1) // doar oprirea de miercuri e inca in viitor; anunturile de mediu nu conteaza
+    expect(el[0]).toMatchObject({ kind: 'water', city: 'Craiova', county: 'dolj', title: 'Apă oprită miercuri, 10:00–13:00', area: 'blocurile alimentate din PT Horezu – Hotel Militar', from: '2026-11-25T08:00:00.000Z' })
+    expect(() => citesteRss('<html>eroare</html>')).toThrow(/RSS/)
+  })
+  it('Distrigaz: pagina de anunturi (reconstituita) si pagina de mentenanta (reala)', () => {
+    const el = anunturiDinHtml(F('distrigaz-intreruperi-exemplu.html'), 'https://x.ro/p').flatMap((a) => anuntInElemente(a, 'gas', { acum: new Date('2026-11-24T12:00:00+02:00'), prefix: 'g', judetImplicit: 'bucuresti', localitateImplicita: 'București' })).map((e) => d(e.data))
+    expect(el).toHaveLength(2)
+    expect(el[0]).toMatchObject({ county: 'bucuresti', title: 'Gaz oprit joi, 09:00–17:00' })
+    expect(el[1]).toMatchObject({ county: 'olt', city: 'Slatina' })
+    expect(F('distrigaz-mentenanta.html')).toMatch(/ePortalDGSR/)
+  })
+  it('Monitorul preturilor: UAT si preturi (format reconstituit) -> media pe judet', () => {
+    expect(idUat(F('monitor-uat-craiova.xml'), 'Craiova')).toBe('4135')
+    const r = statiiSiPreturi(F('monitor-gas-craiova.xml'), 'Dolj', 'Craiova')
+    expect(r).toHaveLength(5)
+    const [e] = parseazaCarburanti(r as never, new Date('2026-11-24T12:00:00+02:00')).map((x) => d(x.data))
+    expect(e).toMatchObject({ county: 'dolj', petrol: 7.52, diesel: 7.64, lpg: 3.69, cheapestNote: 'Calea Severinului 40, Craiova (OMV Petrom): 7,49 lei' })
+    expect(() => statiiSiPreturi('<html><body>x</body></html>', 'Dolj', 'Craiova')).toThrow(/HTML/)
+  })
+  it('legaturile din pagina-lista', () => {
+    const l = linkuri('<a href="/ro/stiri/infotrafic-24-11">Comunicat INFOTRAFIC</a><a href="https://alt.ro/x">alt</a><a href="docs/a.pdf">Program</a>', 'https://www.exemplu.ro/ro/', /infotrafic|\.pdf/i)
+    expect(l.map((x) => x.url)).toEqual(['https://www.exemplu.ro/ro/stiri/infotrafic-24-11', 'https://www.exemplu.ro/ro/docs/a.pdf'])
   })
 })

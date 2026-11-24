@@ -5,6 +5,7 @@ import { are, autentificat, doarAdmin } from '../access/roluri'
 // statutul legal, ultima rulare si ultima eroare. Randurile le creeaza conectorii la prima rulare.
 export const STATUT_LEGAL = [
   { label: 'Date publice oficiale (se pot prelua cu citarea sursei)', value: 'public_official' },
+  { label: 'Anunț public, preluat cu atribuire (decizia editorului)', value: 'public_notice' },
   { label: 'Necesită acordul sursei (oprit până la răspuns)', value: 'needs_permission' },
   { label: 'Acord primit (scris)', value: 'permission_granted' },
   { label: 'API de partener (contract)', value: 'partner_api' },

@@ -127,9 +127,10 @@ describe.skipIf(!ok)('surse -> baza -> harta (integrare)', () => {
   })
 
   it('comutatorul de oprire si sursele fara acord', async () => {
-    const r = await R.ruleazaConector(payload, 'igpr-infotrafic', { invalideaza: false, log: () => {} })
-    expect(r.status).toBe('oprit')
     process.env.SURSE_OPRITE = 'anm-avertizari'
     try { expect((await R.ruleazaConector(payload, 'anm-avertizari', { ...opt(), fortat: false })).status).toBe('oprit') } finally { delete process.env.SURSE_OPRITE }
+    const reg = (await payload.find({ collection: 'data-sources', where: { key: { equals: 'cnair-drumuri' } } as never, overrideAccess: true })).docs[0] as any
+    await payload.update({ collection: 'data-sources', id: reg.id, data: { legalStatus: 'needs_permission' } as never, overrideAccess: true, context: { surse: true } })
+    expect((await R.ruleazaConector(payload, 'cnair-drumuri', { invalideaza: false, log: () => {} })).status).toBe('oprit') // fara fetch de test: nu descarca
   })
 })

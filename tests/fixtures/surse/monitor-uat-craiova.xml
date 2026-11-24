@@ -1,0 +1,2 @@
+<?xml version="1.0" encoding="utf-8"?>
+<GetUATByNameResult xmlns="http://schemas.datacontract.org/2004/07/pmonsvc.Models"><UATs><UAT><Id>4135</Id><Name>CRAIOVA</Name><CountyId>16</CountyId></UAT><UAT><Id>4150</Id><Name>CRAIOVA (sat)</Name></UAT></UATs></GetUATByNameResult>
