@@ -4,7 +4,8 @@
 //   CNAIR: „DN23, Mândrești Munteni (Jud Vrancea) – Olăneasca (Jud. Brăila);”   „DN 1 - km 65+913 - km 66+500, Bărcăneşti;”
 import { cheie, judetDinNume, localitate } from '../geo'
 import { kmDin, normDrum, potrivesteTronson } from '../tronsoane'
-import { amprenta, PRIMA_MAJUSCULA, textDinHtml } from '../text'
+import { amprenta, dataPunct, dataRomaneasca, PRIMA_MAJUSCULA, textDinHtml } from '../text'
+import { DOMParser } from 'linkedom'
 import type { Element } from '../tipuri'
 
 const DRUM_INCEPUT = /^\s*(?:[-•–·*]\s*)?(?:pe\s+)?((?:A|DN|DX|DJ|DE)\s?\d{1,3}[A-Z]?)\b\s*[,:.\-–]?\s*/i
@@ -128,5 +129,64 @@ export function parseazaCnair(html: string, acum = new Date()): Element[] {
   }
   const out: Element[] = []
   for (const e of evs) { const el = element('cnair', e, acum, 12); if (el && !out.some((o) => o.externalId === el.externalId)) out.push(el) }
+  return out
+}
+
+/**
+ * CNAIR, fluxul RSS oficial al comunicatelor: https://www.cnadnr.ro/ro/comunicare/comunicate-de-presa/rss (verificat 24.11.2026).
+ * <item><title>Circulație închisă pe DN67C – Transalpina, între Obârșia Lotrului și Curpăt</title><description>(HTML Drupal escapat;
+ * textul e in field-item property="content:encoded")</description><pubDate>…</pubDate><guid>16135 at https://www.cnadnr.ro</guid>
+ * Pastram doar comunicatele despre inchideri / restrictii / lucrari care afecteaza circulatia; un comunicat ramane valabil
+ * 7 zile de la inceput (CNAIR nu publica sfarsitul), iar un „redeschide” mai nou pe acelasi drum il anuleaza.
+ */
+const RELEVANT_CNAIR = /[îi]nchi(de|s|să|să)|[îi]nchid|restric[tț]i|restric[tț]ionat|lucr[aă]ri[^.]{0,80}circula/i
+const IRELEVANT_CNAIR = /agabaritic|\bDALI\b|\bSF\b|elaborare|achizi[tț]i|licita|aplica[tț]iile informatice|mentenan[tț][aă] la aplica/i
+export function parseazaCnairRss(xml: string, acum = new Date(), valabilZile = 7): Element[] {
+  const doc = new DOMParser().parseFromString(String(xml || '').replace(/^\uFEFF/, ''), 'text/xml')
+  if (doc.documentElement?.tagName !== 'rss') throw new Error(`CNAIR: fluxul RSS lipsește (rădăcina „${doc.documentElement?.tagName || 'lipsă'}”); adresa sau formatul s-au schimbat.`)
+  type It = { getElementsByTagName(n: string): ArrayLike<{ textContent: string | null }> }
+  const iteme = (Array.from(doc.getElementsByTagName('item')) as unknown as It[]).map((it) => {
+    const t = (n: string) => it.getElementsByTagName(n)[0]?.textContent || ''
+    const desc = t('description')
+    // corpul comunicatului (campul content:encoded); fara categoria „Interes general”
+    const corp = desc.match(/property="content:encoded"[^>]*>([\s\S]*?)<\/div>/)?.[1] ?? desc
+    const pub = Date.parse(t('pubDate'))
+    return { titlu: textDinHtml(t('title')).trim(), text: textDinHtml(corp).replace(/\s+/g, ' ').trim(), pub: Number.isFinite(pub) ? new Date(pub) : acum, id: t('guid').match(/\d+/)?.[0] || amprenta(t('link')) }
+  }).sort((a, b) => +b.pub - +a.pub)
+  const redeschise = new Map<string, Date>()
+  const out: Element[] = []
+  for (const it of iteme) {
+    const tot = `${it.titlu}. ${it.text}`
+    const dm = tot.match(/\b(A|DN|DX)\s?(\d{1,3}[A-Z]?)\b/)
+    if (!dm) continue
+    const road = `${dm[1]}${dm[2]}`
+    if (/redeschi/i.test(tot)) { if (!redeschise.has(road)) redeschise.set(road, it.pub); continue }
+    if (!RELEVANT_CNAIR.test(tot) || IRELEVANT_CNAIR.test(tot)) continue
+    if ((redeschise.get(road)?.getTime() ?? 0) > it.pub.getTime()) continue
+    const an = Number(new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Bucharest', year: 'numeric' }).format(it.pub))
+    const dPunct = it.text.match(/(\d{1,2}\.\d{1,2}\.\d{4}),?\s*(?:ora|orele)\s*(\d{1,2}[:.]\d{2})/i)
+    const dLit = it.text.match(/\d{1,2}\s+(?:ianuarie|februarie|martie|aprilie|mai|iunie|iulie|august|septembrie|octombrie|noiembrie|decembrie)\s*(?:\d{4})?,?\s*(?:ora|orele)\s*\d{1,2}[:.]\d{2}/i)
+    const start = (dPunct && dataPunct(dPunct[1], dPunct[2].replace('.', ':'), an)) || (dLit && dataRomaneasca(dLit[0].replace(/ora (\d{1,2})\.(\d{2})/, 'ora $1:$2'), an)) || it.pub
+    const until = new Date(Math.max(start.getTime(), it.pub.getTime()) + valabilZile * 864e5)
+    if (until.getTime() <= acum.getTime()) continue
+    const intre = tot.match(/[îi]ntre\s+(?!km)([A-ZĂÂÎȘŞȚŢ][^,;()]*?)(?:\s*\([^)]*\))?\s+(?:și|si|–|-)\s+([A-ZĂÂÎȘŞȚŢ][^,;()]*?)(?=\s*[,(.;]|\s+pe\s|\s+[îi]ntre\s|$)/)
+    const capete = intre ? [intre[1].trim(), intre[2].trim()] : []
+    const km = [...tot.matchAll(/km\.?\s*(\d+\s*\+\s*\d{3}|\d+)/gi)].map((x) => kmDin(x[1]))
+    const st = /[îi]nchi/i.test(tot) ? 'closed' as const : 'works' as const
+    const motiv = it.text.match(/din cauza ([^.(,]+?)(?=\s*[.(,]|\s+se\s|$)/i)?.[1]
+    const kmTxt = km.length ? ` (km ${[Math.min(...km), Math.max(...km)].map((k) => String(Math.round(k * 1000) / 1000).replace('.', ',')).join('–')})` : ''
+    const what = `${st === 'closed' ? 'Circulație închisă' : 'Circulație restricționată pentru lucrări'}${motiv ? `, din cauza ${motiv}` : ''}${kmTxt}`
+    const pot = potrivesteTronson(road, { km, localitati: capete })
+    const judet = judetDinText(tot) || pot.loc?.judet || null
+    if (!judet) continue
+    out.push({
+      externalId: `cnair:${it.id}`,
+      data: {
+        road, segment: (capete.length ? capete.join('–') : it.titlu).slice(0, 120), what: what.slice(0, 300), status: st, label: null,
+        county: judet, mapSegment: pot.tronsoane, lat: pot.loc?.lat ?? null, lon: pot.loc?.lon ?? null,
+        from: start.toISOString(), until: until.toISOString(),
+      },
+    })
+  }
   return out
 }

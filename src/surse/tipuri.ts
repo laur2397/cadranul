@@ -27,6 +27,8 @@ export type ContextRulare = {
   log: (m: string) => void
   /** pauza intre cereri succesive la aceeasi sursa (implicit 1,5 s; 0 in teste) */
   pauzaMs?: number
+  /** memorie mica intre rulari, salvata in registru (ex. id-urile UAT la Monitorul preturilor) */
+  memorie: Record<string, string>
 }
 
 export type Conector = {

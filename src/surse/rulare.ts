@@ -182,7 +182,9 @@ export async function ruleazaConector(payload: Payload, key: string, opt: Optiun
   const descarca = descarcator(opt.fetchImpl || fetch, cache, { robots: opt.robots ?? !opt.fetchImpl, pauzaMs: opt.fetchImpl ? 1 : 2000 })
   let esecuri = Number(reg.consecutiveFailures) || 0
   try {
-    const rez = await con.ruleaza({ url: reg.url || con.url, acum, descarca, log, pauzaMs: opt.fetchImpl ? 0 : undefined })
+    const memorie = { ...((cache as Record<string, unknown>).__memorie as Record<string, string> || {}) }
+    const rez = await con.ruleaza({ url: reg.url || con.url, acum, descarca, log, pauzaMs: opt.fetchImpl ? 0 : undefined, memorie })
+    ;(cache as Record<string, unknown>).__memorie = memorie
     if (rez.neschimbat) {
       raport.status = 'neschimbat'; raport.mesaj = 'sursa nu are nimic nou (304)'
     } else {

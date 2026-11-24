@@ -1,2 +1,1 @@
-<?xml version="1.0" encoding="utf-8"?>
-<GetUATByNameResult xmlns="http://schemas.datacontract.org/2004/07/pmonsvc.Models"><UATs><UAT><Id>4135</Id><Name>CRAIOVA</Name><CountyId>16</CountyId></UAT><UAT><Id>4150</Id><Name>CRAIOVA (sat)</Name></UAT></UATs></GetUATByNameResult>
+<UATs xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://schemas.datacontract.org/2004/07/pmonsvc.Models.Protos"><Items><UAT><Bounds/><Id>69900</Id><Name>Municipiul Craiova, Dolj</Name><RouteId>461404</RouteId><Wkt>POLYGON((23.7076804441561 44.2683536737048,23.7076804441561 44.3786423049367,23.9053366455566 44.3786423049367,23.9053366455566 44.2683536737048,23.7076804441561 44.2683536737048))</Wkt></UAT></Items></UATs>

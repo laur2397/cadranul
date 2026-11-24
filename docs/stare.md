@@ -19,10 +19,9 @@
 - Importurile automate de date (`src/surse`, `docs/fluxuri-date.md`): registru „Surse de date” în /admin cu comutator de oprire
   și statut legal, jurnal pe rulări, alertă după eșecuri repetate, worker separat (`npm run surse:worker`), rulare manuală și
   simulare (`npm run surse -- <sursă|all> [--dry-run]`). Pe site: „Sursa: …, actualizat …”, datele expirate dispar, carburanții
-  mai vechi de 48 h apar estompați. **Toate cele 8 surse sunt pornite** (decizia editorului: anunțurile publice se preiau automat, cu atribuire).
-  Cu date reale verificate de aici: ANM, OPCOM, Compania de Apă Oltenia. De confirmat la prima rulare pe serverul din România
-  (nu răspund din afara țării): IGPR Infotrafic, CNAIR, Monitorul prețurilor, Distrigaz. Distribuție Energie Oltenia cere
-  validare anti-robot: raportată, nu ocolită. Lista de verificat: `docs/fluxuri-date.md`, „Prima rulare”.
+  mai vechi de 48 h apar estompați. **Pornite** (verificate din România, 24.11.2026): ANM, OPCOM, CNAIR (RSS), Monitorul prețurilor (carburanți pe județe),
+  Compania de Apă Oltenia (RSS). **Oprite, cu motivul în /admin**: Poliția Română Infotrafic (robots.txt interzice), Distribuție
+  Energie Oltenia (validare anti-robot), Distrigaz Sud Rețele (formular legat de sesiune); pentru ele: cererile din `docs/cereri-acces/`.
 
 ## Doar demonstrativ
 - Tot conținutul (45 de articole, autori, firme, joburi, farmacii, reclame) este fictiv. Orele sunt relative la momentul
@@ -35,15 +34,16 @@
 - „Cele mai citite” se alege manual până la conectarea statisticilor.
 
 ## Ce urmează
-1. Prima rulare a importurilor pe serverul de producție (lista din `docs/fluxuri-date.md`), worker-ul ca serviciu; opțional,
-   cererile de flux structurat din `docs/cereri-acces/`; verificarea parserului nowcasting ANM la primul cod real.
+1. Prima rulare a importurilor pe serverul de producție (lista din `docs/fluxuri-date.md`), worker-ul ca serviciu; trimiterea
+   cererilor pentru IGPR, Distribuție Oltenia și Distrigaz; verificarea parserului nowcasting ANM la primul cod real.
 2. Furnizor de e-mail pentru newsletter; stocare imagini (S3/R2) pentru încărcările din /admin.
 3. Platformă de consimțământ certificată Google (TCF) înainte de AdSense/Ad Manager în UE.
 4. Găzduire, domeniu, conturi pe firma editoare (registrul `audit/registru-proprietate.yaml`).
 
 ## Decizii ale proprietarului
-- Decis (24.11.2026): drumurile, carburanții și avariile se preiau automat din paginile publice, cu atribuire. Rămân de hotărât:
-  trimiterea cererilor opționale de flux structurat (`docs/cereri-acces/`) și adresa de contact din User-Agent (`SURSE_CONTACT`).
+- Decis (24.11.2026): anunțurile publice se preiau automat, cu atribuire, acolo unde robots.txt permite și fără ocolirea
+  protecțiilor. De făcut: trimiterea cererilor pentru IGPR, Distribuție Oltenia și Distrigaz (`docs/cereri-acces/`) și adresa
+  de contact din User-Agent (`SURSE_CONTACT`).
 - Firma editoare și datele ei (subsol, pagini legale, JSON-LD, registrul de proprietate).
 - Reclame ne-personalizate și după „Refuz tot”? (`NEXT_PUBLIC_ADS_ON_REFUSAL`, implicit „nu”), de hotărât cu avocatul.
 - Verificarea paginilor legale de către avocat (bifa „Verificată de avocat” în /admin scoate nota de model).

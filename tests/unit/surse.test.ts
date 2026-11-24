@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { fenomene, interval, parseazaAvertizari, parseazaNowcasting } from '../../src/surse/parsere/anm'
 import { parseazaPZU } from '../../src/surse/parsere/opcom'
-import { clasifica, parseazaCnair, parseazaInfotrafic } from '../../src/surse/parsere/drumuri'
+import { clasifica, parseazaCnair, parseazaCnairRss, parseazaInfotrafic } from '../../src/surse/parsere/drumuri'
 import { parseazaCarburanti } from '../../src/surse/parsere/carburanti'
 import { parseazaAvarii } from '../../src/surse/parsere/avarii'
 import { kmDin, normDrum, potrivesteTronson } from '../../src/surse/tronsoane'
@@ -139,7 +139,7 @@ describe('carburanti si avarii', () => {
     const l = parseazaCarburanti(F('carburanti-exemplu.csv'), ACUM).map((e) => d(e.data))
     const dj = l.find((e) => e.county === 'dolj')!
     expect(dj.petrol).toBe(7.54); expect(dj.diesel).toBe(7.66); expect(dj.lpg).toBe(3.69); expect(dj.day).toBe('2026-11-24')
-    expect(dj.cheapestNote).toBe('Craiova, Calea Severinului 40 (OMV Petrom): 7,49 lei')
+    expect(dj.cheapestNote).toBe('Petrom Calea Severinului, Calea Severinului 40: 7,49 lei')
     expect(l.find((e) => e.county === 'olt')).toBeUndefined() // 20.11: peste 48 de ore
     expect(l.find((e) => e.county === 'gorj')!.lpg).toBeNull()
   })
@@ -165,6 +165,10 @@ describe('descarcari politicoase', () => {
     expect(permis(r, '/wp-admin/')).toBe(true) // grupul nostru nu interzice /wp-admin
     const s = parseazaRobots('User-agent: *\nDisallow: /wp-admin/\nAllow: /wp-admin/admin-ajax.php')
     expect(permis(s, '/wp-admin/x')).toBe(false); expect(permis(s, '/wp-admin/admin-ajax.php')).toBe(true); expect(permis(s, '/')).toBe(true)
+    // politiaromana.ro (24.11.2026): totul interzis in afara de /index.php
+    const igpr = parseazaRobots('User-agent: *\nDisallow: /\nAllow: /index.php')
+    expect(permis(igpr, '/ro/info-trafic')).toBe(false); expect(permis(igpr, '/index.php')).toBe(true)
+    expect(parseazaRobots('User-agent: *\nCrawl-delay: 10\nDisallow:').crawlDelay).toBe(10)
   })
   it('User-Agent, ETag/304, reincercare la 503, oprire la robots', async () => {
     golesteRobots()
@@ -189,11 +193,13 @@ describe('descarcari politicoase', () => {
 })
 
 describe('registru si planificare', () => {
-  it('toate sursele sunt pornite implicit, cu atribuire; scrisorile raman optionale', () => {
+  it('pornite: ANM, OPCOM, CNAIR, carburanti, Apa Oltenia; oprite (robots / anti-robot / formular): IGPR, DEO, Distrigaz', () => {
+    expect(CONECTORI.filter((c) => c.pornitImplicit).map((c) => c.key).sort()).toEqual(['anm-avertizari', 'avarii-apa-oltenia', 'carburanti-cc', 'cnair-drumuri', 'opcom-pzu'])
     for (const c of CONECTORI) {
-      expect(c.pornitImplicit).toBe(true); expect(c.legal).not.toBe('needs_permission'); expect(c.url).toMatch(/^https:\/\//); expect(c.atribuire).toBeTruthy()
-      if (c.cerere) expect(readFileSync(c.cerere, 'utf8')).toContain('[Denumire firma editoare]')
+      expect(c.url).toMatch(/^https:\/\//); expect(c.atribuire).toBeTruthy()
+      if (!c.pornitImplicit) { expect(c.legal).toBe('needs_permission'); expect(c.note).toMatch(/^OPRIT: /); expect(readFileSync(c.cerere!, 'utf8')).toContain('[Denumire firma editoare]') }
     }
+    expect(CONECTORI.find((c) => c.key === 'igpr-infotrafic')!.note).toContain('Disallow: /')
   })
   it('ANM la 10 minute, cu asteptare dubla dupa esecuri', () => {
     const t = Date.parse('2026-11-24T10:00:00Z')
@@ -245,13 +251,36 @@ describe('anunturi publice (decizia editorului)', () => {
     expect(el[1]).toMatchObject({ county: 'olt', city: 'Slatina' })
     expect(F('distrigaz-mentenanta.html')).toMatch(/ePortalDGSR/)
   })
-  it('Monitorul preturilor: UAT si preturi (format reconstituit) -> media pe judet', () => {
-    expect(idUat(F('monitor-uat-craiova.xml'), 'Craiova')).toBe('4135')
-    const r = statiiSiPreturi(F('monitor-gas-craiova.xml'), 'Dolj', 'Craiova')
-    expect(r).toHaveLength(5)
-    const [e] = parseazaCarburanti(r as never, new Date('2026-11-24T12:00:00+02:00')).map((x) => d(x.data))
-    expect(e).toMatchObject({ county: 'dolj', petrol: 7.52, diesel: 7.64, lpg: 3.69, cheapestNote: 'Calea Severinului 40, Craiova (OMV Petrom): 7,49 lei' })
+  it('Monitorul preturilor: raspunsurile reale (UAT, benzina 11, motorina 21) -> media pe judet', () => {
+    expect(idUat(F('monitor-uat-craiova.xml'), 'Craiova', 'Dolj')).toBe('69900')
+    expect(idUat(F('monitor-uat-craiova.xml'), 'Craiova', 'Olt')).toBeNull()
+    const acum = new Date('2026-11-24T15:00:00+02:00')
+    const b = statiiSiPreturi(F('monitor-gas-craiova-11.xml'), 'Dolj', 'Craiova', { uat: '69900', acum })
+    const m = statiiSiPreturi(F('monitor-gas-craiova-21.xml'), 'Dolj', 'Craiova', { uat: '69900', acum })
+    expect(b.length).toBeGreaterThan(5); expect(b.every((x) => x.produs === 'Benzină standard')).toBe(true)
+    expect(m.every((x) => x.produs === 'Motorină standard')).toBe(true)
+    const [e] = parseazaCarburanti([...b, ...m] as never, acum, 72).map((x) => d(x.data))
+    expect(e).toMatchObject({ county: 'dolj', day: '2026-11-24', petrol: 8.96, diesel: 10.37, lpg: null })
+    expect(e.cheapestNote).toBe('LUKOIL Craiova 2, Calea Severinului: 8,93 lei')
+    // preturile mai vechi de 72 de ore se ignora
+    expect(statiiSiPreturi(F('monitor-gas-craiova-11.xml'), 'Dolj', 'Craiova', { uat: '69900', acum: new Date('2026-11-28T12:00:00+02:00') })).toHaveLength(0)
+    // alt UAT -> statiile nu se numara
+    expect(statiiSiPreturi(F('monitor-gas-craiova-11.xml'), 'Dolj', 'Craiova', { uat: '1', acum })).toHaveLength(0)
     expect(() => statiiSiPreturi('<html><body>x</body></html>', 'Dolj', 'Craiova')).toThrow(/HTML/)
+  })
+  it('CNAIR: fluxul RSS real -> doar inchideri, tronson, km, expirare dupa 7 zile', () => {
+    const vechi = parseazaCnairRss(F('cnair-rss-2026-11-24.xml'), new Date('2026-10-28T12:00:00+02:00')).map((e) => d(e.data))
+    expect(vechi.map((e) => e.road)).toEqual(['DN67C', 'DN7C'])
+    const dn7c = vechi[1]
+    expect(dn7c).toMatchObject({ status: 'closed', segment: 'Piscul Negru–Bâlea Cascadă', mapSegment: ['dn7c'], county: 'arges', from: '2026-10-27T16:00:00.000Z' })
+    const azi = parseazaCnairRss(F('cnair-rss-2026-11-24.xml'), new Date('2026-11-24T12:00:00+02:00')).map((e) => d(e.data))
+    expect(azi).toHaveLength(1) // DN7C (27.10) a expirat; agabaritic, DALI/SF si mentenanta IT sunt ignorate
+    expect(azi[0]).toMatchObject({ road: 'DN67C', status: 'closed', segment: 'Obârșia Lotrului–Curpăt', mapSegment: ['dn67c'], county: 'valcea', from: '2026-11-23T08:30:00.000Z' })
+    expect(azi[0].what).toBe('Circulație închisă, din cauza căderilor abundente de zăpadă și a condițiilor meteorologice nefavorabile (km 61–79)')
+    // un comunicat mai nou „se redeschide” anuleaza inchiderea
+    const redeschis = F('cnair-rss-2026-11-24.xml').replace('<item>', '<item><title>Se redeschide circulația pe DN67C</title><description>Circulația pe DN67C se redeschide.</description><pubDate>Tue, 24 Nov 2026 08:00:00 +0000</pubDate><guid>1</guid></item><item>')
+    expect(parseazaCnairRss(redeschis, new Date('2026-11-24T12:00:00+02:00'))).toHaveLength(0)
+    expect(() => parseazaCnairRss('<html/>')).toThrow(/RSS/)
   })
   it('legaturile din pagina-lista', () => {
     const l = linkuri('<a href="/ro/stiri/infotrafic-24-11">Comunicat INFOTRAFIC</a><a href="https://alt.ro/x">alt</a><a href="docs/a.pdf">Program</a>', 'https://www.exemplu.ro/ro/', /infotrafic|\.pdf/i)

@@ -4,7 +4,7 @@
 import { ziRO, ziPlus } from '../site/timp'
 import { parseazaAvertizari, parseazaNowcasting } from './parsere/anm'
 import { parseazaPZU } from './parsere/opcom'
-import { parseazaCnair, parseazaInfotrafic } from './parsere/drumuri'
+import { parseazaCnairRss, parseazaInfotrafic } from './parsere/drumuri'
 import { parseazaCarburanti } from './parsere/carburanti'
 import { parseazaAvarii } from './parsere/avarii'
 import { randuriDinPdf } from './parsere/deo-pdf'
@@ -101,12 +101,12 @@ async function comunicat(c: ContextRulare, re: RegExp, sursa: string) {
 
 export const IGPR: Conector = {
   key: 'igpr-infotrafic', name: 'Poliția Română: Infotrafic (comunicate trafic)', collection: 'road-events',
-  legal: 'public_notice', pornitImplicit: true,
+  legal: 'needs_permission', pornitImplicit: false,
   url: 'https://www.politiaromana.ro/ro/info-trafic',
-  termsUrl: 'https://www.politiaromana.ro/', atribuire: 'Poliția Română, Infotrafic',
+  termsUrl: 'https://politiaromana.ro/robots.txt', atribuire: 'Poliția Română, Infotrafic',
   planificare: { laMinute: 15 }, frecventaText: 'la 15 minute',
   expiraLipsa: true, cerere: 'docs/cereri-acces/igpr-infotrafic.md',
-  note: 'Comunicatele Centrului INFOTRAFIC (publice). Pagina-listă -> cel mai nou comunicat. Site-ul nu răspunde din afara României: adresa se verifică la prima rulare pe server. Cererea din docs/cereri-acces e opțională (pentru un flux structurat).',
+  note: 'OPRIT: robots.txt al politiaromana.ro (verificat din România, 24.11.2026) este „User-agent: * / Disallow: / / Allow: /index.php”, deci accesul automat la /ro/info-trafic este interzis. Nu îl ocolim (nici prin /index.php). Calea: cererea din docs/cereri-acces/igpr-infotrafic.md (flux RSS/JSON). Parserul pentru comunicate e gata.',
   async ruleaza(c) {
     const html = await comunicat(c, /infotrafic|info[- ]?trafic|trafic(ul)? rutier|situa[tț]ia (traficului|drumurilor)/i, 'Poliția Română')
     if (html == null) return { elemente: [], neschimbat: true }
@@ -117,17 +117,18 @@ export const IGPR: Conector = {
 }
 
 export const CNAIR: Conector = {
-  key: 'cnair-drumuri', name: 'CNAIR: drumuri închise, restricții, lucrări', collection: 'road-events',
+  key: 'cnair-drumuri', name: 'CNAIR: drumuri închise, restricții, lucrări (comunicate RSS)', collection: 'road-events',
   legal: 'public_notice', pornitImplicit: true,
-  url: 'https://www.cnadnr.ro/ro',
-  termsUrl: 'https://www.cnadnr.ro/', atribuire: 'CNAIR',
+  url: 'https://www.cnadnr.ro/ro/comunicare/comunicate-de-presa/rss',
+  termsUrl: 'https://www.cnadnr.ro/robots.txt', atribuire: 'CNAIR',
   planificare: { laMinute: 30 }, frecventaText: 'la 30 de minute',
   expiraLipsa: true, cerere: 'docs/cereri-acces/cnair-drumuri.md',
-  note: 'Atenție: cnair.ro NU este site-ul companiei (e o firmă privată); CNAIR folosește cnadnr.ro. Pagina principală -> comunicatul despre drumuri închise / restricții. Site-ul nu răspunde din afara României: adresa se verifică la prima rulare.',
+  note: 'Fluxul RSS oficial al comunicatelor CNAIR (verificat din România, 24.11.2026). robots.txt permite, cu Crawl-delay: 10 (respectat). Se păstrează doar comunicatele despre închideri / restricții / lucrări; fiecare rămâne 7 zile de la început, un „redeschide” mai nou îl anulează. Atenție: cnair.ro e altă firmă.',
   async ruleaza(c) {
-    const html = await comunicat(c, /drumuri (închise|inchise)|restric[tț]ii|infotrafic|info trafic|situa[tț]ia drumurilor|sectoare de drum/i, 'CNAIR')
-    if (html == null) return { elemente: [], neschimbat: true }
-    return { elemente: parseazaCnair(html, c.acum) }
+    const r = await c.descarca(c.url, { accept: 'application/rss+xml,application/xml' })
+    if (r.neschimbat) return { elemente: [], neschimbat: true }
+    verificaBlocaj(r.text, 'CNAIR')
+    return { elemente: parseazaCnairRss(r.text, c.acum) }
   },
 }
 
@@ -137,37 +138,46 @@ export const CARBURANTI: Conector = {
   url: 'https://monitorulpreturilor.info/pmonsvc/Gas/', termsUrl: 'https://monitorulpreturilor.info/', atribuire: 'Consiliul Concurenței, Monitorul prețurilor',
   planificare: { zilnicDupa: '09:40', reincearcaMinute: 120, pana: '18:00' }, frecventaText: 'zilnic la 09:40 (și la cerere: npm run surse -- carburanti-cc)',
   expiraLipsa: false, cerere: 'docs/cereri-acces/consiliul-concurentei-carburanti.md',
-  note: 'Serviciul public (fără autentificare) folosit de aplicația Monitorul prețurilor: o cerere pentru UAT-ul reședinței și una pentru prețuri, pe fiecare județ, o dată pe zi, cu pauză între cereri. Se păstrează doar media pe județ (din reședință) și cea mai ieftină stație. Nu răspunde din afara României: formatul se verifică la prima rulare.',
+  note: 'Serviciul public al aplicației Monitorul prețurilor (fără autentificare; robots.txt: 404, fără reguli), format verificat din România pe 24.11.2026. Pe județ: UAT-ul reședinței (o dată, apoi ținut minte) și câte o cerere pe produs (11 benzină, 21 motorină, 31 GPL; serviciul nu acceptă mai multe id-uri odată), cu pauză între cereri. Se păstrează doar media pe județ (stațiile din reședință, actualizate în ultimele 72 h) și cea mai ieftină stație.',
   async ruleaza(c) {
-    const produse = process.env.SURSE_CARBURANTI_PRODUSE || '11,21,31'
+    const produse = (process.env.SURSE_CARBURANTI_PRODUSE || '11,21,31').split(/[,\s]+/).filter((x) => /^\d+$/.test(x))
     const randuri: Record<string, string>[] = []
     const erori: string[] = []
+    const pauza = () => new Promise((r) => setTimeout(r, c.pauzaMs ?? 1500))
     for (const [slug, oras] of Object.entries(RESEDINTE)) {
+      const judet = JUDETE[slug][1]
       try {
-        const u = await c.descarca(`${c.url}GetUATByName?uatname=${encodeURIComponent(oras.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase())}`, { conditionat: false })
-        verificaBlocaj(u.text, 'Monitorul prețurilor')
-        const id = idUat(u.text, oras)
-        if (!id) { erori.push(`${oras}: UAT negăsit`); continue }
-        const p = await c.descarca(`${c.url}GetGasItemsByUat?UatId=${id}&CSVGasCatalogProductIds=${produse}&OrderBy=price`, { conditionat: false })
-        randuri.push(...statiiSiPreturi(p.text, JUDETE[slug][1], oras))
+        let id = c.memorie[`uat:${slug}`]
+        if (!id) {
+          const u = await c.descarca(`${c.url}GetUATByName?uatname=${encodeURIComponent(oras.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase())}`, { conditionat: false })
+          verificaBlocaj(u.text, 'Monitorul prețurilor')
+          id = idUat(u.text, oras, slug === 'bucuresti' ? undefined : judet) || ''
+          if (!id) { erori.push(`${oras}: UAT negăsit`); continue }
+          c.memorie[`uat:${slug}`] = id
+          await pauza()
+        }
+        for (const p of produse) {
+          const r = await c.descarca(`${c.url}GetGasItemsByUat?UatId=${id}&CSVGasCatalogProductIds=${p}&OrderBy=price`, { conditionat: false })
+          randuri.push(...statiiSiPreturi(r.text, judet, oras, { uat: id, acum: c.acum, maxOre: 72 }))
+          await pauza()
+        }
       } catch (e) {
         erori.push(`${oras}: ${(e as Error).message}`)
         if (erori.length >= 3 && !randuri.length) throw new Error(`Monitorul prețurilor: ${erori.join(' | ')}`)
       }
-      await new Promise((r) => setTimeout(r, c.pauzaMs ?? 1500))
     }
     if (erori.length) c.log(`fără date pentru ${erori.length} județe: ${erori.slice(0, 5).join(' | ')}`)
-    return { elemente: parseazaCarburanti(randuri, c.acum) }
+    return { elemente: parseazaCarburanti(randuri, c.acum, 72) }
   },
 }
 
 export const AVARII_DEO: Conector = {
   key: 'avarii-deo', name: 'Distribuție Energie Oltenia: întreruperi programate (curent)', collection: 'outages',
-  legal: 'public_notice', pornitImplicit: true, url: 'https://www.distributieoltenia.ro/ro/intreruperi-programate',
+  legal: 'needs_permission', pornitImplicit: false, url: 'https://www.distributieoltenia.ro/ro/intreruperi-programate',
   termsUrl: 'https://www.distributieoltenia.ro/', atribuire: 'Distribuție Energie Oltenia',
   planificare: { laMinute: 360 }, frecventaText: 'la 6 ore (programul e săptămânal)', expiraLipsa: true,
   cerere: 'docs/cereri-acces/distributie-energie-oltenia.md',
-  note: 'PDF-uri săptămânale pe județe („Lucrări pentru prevenire și corectare avarii”), citite cu poziția textului. La verificare (24.11.2026) pagina cerea validare anti-robot (cod 338) clienților automați: nu o ocolim, conectorul raportează blocajul în registru.',
+  note: 'OPRIT: pagina cere validare anti-robot (cod 338) / răspunde „Blocked” clienților automați (24.11.2026). Nu o ocolim. Calea: cererea din docs/cereri-acces/distributie-energie-oltenia.md. Parserul PDF-urilor săptămânale („Lucrări pentru prevenire și corectare avarii”) e gata și testat pe un PDF real.',
   async ruleaza(c) {
     const r = await c.descarca(c.url)
     if (r.neschimbat) return { elemente: [], neschimbat: true }
@@ -201,11 +211,11 @@ export const AVARII_APA: Conector = {
 
 export const AVARII_GAZ: Conector = {
   key: 'avarii-distrigaz-sud', name: 'Distrigaz Sud Rețele: întreruperi (gaz)', collection: 'outages',
-  legal: 'public_notice', pornitImplicit: true, url: 'https://www.distrigazsud-retele.ro/clienti/utile-clienti/intreruperi-gaze-naturale/',
+  legal: 'needs_permission', pornitImplicit: false, url: 'https://www.distrigazsud-retele.ro/clienti/utile-clienti/intreruperi-gaze-naturale/',
   termsUrl: 'https://www.distrigazsud-retele.ro/', atribuire: 'Distrigaz Sud Rețele',
   planificare: { laMinute: 60 }, frecventaText: 'la 60 de minute', expiraLipsa: true,
   cerere: 'docs/cereri-acces/distrigaz-sud-retele.md',
-  note: 'Pagina publică „Întreruperi gaze naturale”. La verificare (24.11.2026) site-ul răspundea cu pagina de mentenanță „ePortalDGSR indisponibil” (404): formatul anunțurilor se verifică la prima rulare.',
+  note: 'OPRIT: pagina „Întreruperi gaze naturale” e un formular interactiv (trimite la /wp-content/themes/distrigaz/templates/special/opriri/opriri_ws_requests.php date legate de sesiune); nu reproducem cereri legate de sesiune. robots.txt permite. Cerem un flux structurat: docs/cereri-acces/distrigaz-sud-retele.md.',
   async ruleaza(c) {
     const r = await c.descarca(c.url)
     if (r.neschimbat) return { elemente: [], neschimbat: true }

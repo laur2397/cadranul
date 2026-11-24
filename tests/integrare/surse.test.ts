@@ -37,12 +37,15 @@ describe.skipIf(!ok)('surse -> baza -> harta (integrare)', () => {
   const ziua = (d: Date) => { const p = parti(d); return `${p.day}/${p.month}/${p.year}` }
   const opcom = F('opcom-pip-2026-11-24.csv').replace('24/11/2026', ziua(acum))
   let igpr = F('igpr-infotrafic-2026-08-01.html')
+  // CNAIR: fluxul RSS real, cu inchiderea DN67C mutata in ziua de azi
+  const p0 = parti(acum)
+  const cnair = F('cnair-rss-2026-11-24.xml').replace('Luni, 23 noiembrie, ora 10:30', `Azi, ${+p0.day} ${LUNI[+p0.month - 1]}, ora 00:05`).replace('Mon, 23 Nov 2026 08:41:00 +0000', new Date(acum.getTime() - 3600e3).toUTCString())
   const fetchMock = (async (url: string) => {
     if (url.includes('avertizari-nowcasting')) return new Response(F('anm-nowcasting-gol.xml'))
     if (url.includes('avertizari-xml')) return new Response(anm, { headers: { 'content-type': 'text/xml; charset=utf-8' } })
     if (url.includes('opcom')) return url.includes(`/${ziua(acum)}/`) ? new Response(opcom) : new Response('<html>nepublicat</html>')
     if (url.includes('info-trafic')) return new Response(igpr)
-    if (url.includes('cnadnr')) return new Response(F('cnair-drumuri-inchise.html'))
+    if (url.includes('cnadnr')) return new Response(cnair)
     return new Response('', { status: 404 })
   }) as unknown as typeof fetch
   const opt = () => ({ fetchImpl: fetchMock, fortat: true, invalideaza: false, acum: new Date(), log: () => {} })
@@ -74,15 +77,14 @@ describe.skipIf(!ok)('surse -> baza -> harta (integrare)', () => {
     const d = await R.ruleazaConector(payload, 'igpr-infotrafic', opt())
     expect(d.status).toBe('ok'); expect(d.created).toBeGreaterThanOrEqual(7)
     const c = await R.ruleazaConector(payload, 'cnair-drumuri', opt())
-    expect(c.created).toBe(8)
+    expect(c.created).toBe(1) // doar DN67C; DN7C (octombrie) a expirat, restul comunicatelor nu privesc circulatia
 
     const dupa = await harta()
     expect(dupa.svg).toMatch(/fill="url\(#hatchR\)"/) // Olt in cod rosu
     expect(dupa.s.alerte.some((x) => x.imp && x.src === 'ANM' && x.code === 'red' && x.counties.some((j) => j.slug === 'olt'))).toBe(true)
-    const ev = dupa.s.ev.find((e) => e.imp && e.road === 'DN23')!
-    expect(ev.st).toBe('closed'); expect(ev.src).toBe('CNAIR'); expect(ev.cty.slug).toBe('vrancea')
-    // DN1 Valea Prahovei: coloana (IGPR) + lucrari (CNAIR) -> tronsonul ia starea cea mai grava
-    expect(dupa.svg).toMatch(/class="road st works"/)
+    const ev = dupa.s.ev.find((e) => e.imp && e.road === 'DN67C')!
+    expect(ev.st).toBe('closed'); expect(ev.src).toBe('CNAIR'); expect(ev.cty.slug).toBe('valcea'); expect(ev.seg).toEqual(['dn67c'])
+    expect(dupa.svg).toMatch(/class="road st closed"/) // Transalpina inchisa pe harta
     const rulari = await payload.find({ collection: 'source-runs', where: { connector: { equals: 'anm-avertizari' } } as never, overrideAccess: true })
     expect(rulari.totalDocs).toBe(1)
     const reg = (await payload.find({ collection: 'data-sources', where: { key: { equals: 'anm-avertizari' } } as never, overrideAccess: true })).docs[0] as any

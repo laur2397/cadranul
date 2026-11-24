@@ -24,7 +24,7 @@ export function parseazaCarburanti(text: string | Record<string, string>[], acum
   const r = typeof text === 'string' ? randuri(text) : text
   if (!r.length) return []
   if (!('judet' in r[0]) && !('county' in r[0])) throw new Error('Carburanți: lipsește coloana „judet”.')
-  type Statie = { loc: string; adr: string; retea: string; p: number }
+  type Statie = { loc: string; adr: string; retea: string; statie: string; p: number }
   const pe = new Map<string, { petrol: Statie[]; diesel: Statie[]; lpg: Statie[] }>()
   for (const x of r) {
     const j = judetDinNume(camp(x, 'judet', 'county'))
@@ -34,7 +34,7 @@ export function parseazaCarburanti(text: string | Record<string, string>[], acum
     if (!j || !prod || !Number.isFinite(p)) continue
     if (Number.isFinite(t) && acum.getTime() - t > maxVechimeOre * 3600e3) continue
     if (!pe.has(j)) pe.set(j, { petrol: [], diesel: [], lpg: [] })
-    pe.get(j)![prod].push({ loc: camp(x, 'localitate', 'city'), adr: camp(x, 'adresa', 'address'), retea: camp(x, 'retea', 'network', 'statie'), p })
+    pe.get(j)![prod].push({ loc: camp(x, 'localitate', 'city'), adr: camp(x, 'adresa', 'address'), retea: camp(x, 'retea', 'network'), statie: camp(x, 'statie', 'station'), p })
   }
   const day = ziRO(acum)
   const medie = (l: Statie[]) => (l.length ? Math.round((l.reduce((a, s) => a + s.p, 0) / l.length) * 100) / 100 : null)
@@ -47,7 +47,7 @@ export function parseazaCarburanti(text: string | Record<string, string>[], acum
       externalId: `carburanti:${j}:${day}`,
       data: {
         county: j, day, petrol, diesel, lpg: medie(v.lpg),
-        cheapestNote: ief ? `${(ief.adr && ief.loc && cheie(ief.adr).includes(cheie(ief.loc)) ? [ief.adr] : [ief.loc, ief.adr]).filter(Boolean).join(', ')}${ief.retea ? ` (${ief.retea})` : ''}: ${ief.p.toFixed(2).replace('.', ',')} lei` : null,
+        cheapestNote: ief ? `${[ief.statie || ief.loc, ief.adr].filter(Boolean).join(', ')}: ${ief.p.toFixed(2).replace('.', ',')} lei` : null,
       },
     })
   }

@@ -14,7 +14,7 @@ export const BLOCAJ = /Validation request|User validation required|captcha|cf-ch
 const asteapta = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
 // ——— robots.txt (RFC 9309, varianta simpla: grupul nostru sau „*”, reguli Allow/Disallow pe prefix, cea mai lunga castiga)
-type Reguli = { allow: string[]; disallow: string[] }
+type Reguli = { allow: string[]; disallow: string[]; crawlDelay?: number }
 const robotsCache = new Map<string, { t: number; r: Reguli | 'tot-interzis' | 'inaccesibil' }>()
 
 export function parseazaRobots(txt: string, agent = 'cadranulbot'): Reguli {
@@ -29,6 +29,9 @@ export function parseazaRobots(txt: string, agent = 'cadranulbot'): Reguli {
     if (k === 'user-agent') {
       if (!cur || !ultimaAgent) { cur = { agenti: [], r: { allow: [], disallow: [] } }; grupuri.push(cur) }
       cur.agenti.push(v.toLowerCase()); ultimaAgent = true
+    } else if (cur && k === 'crawl-delay') {
+      ultimaAgent = false
+      const n = Number(v); if (Number.isFinite(n) && n > 0) cur.r.crawlDelay = n
     } else if (cur && (k === 'allow' || k === 'disallow')) {
       ultimaAgent = false
       if (v) cur.r[k === 'allow' ? 'allow' : 'disallow'].push(v)
@@ -64,10 +67,21 @@ async function robotsPermite(url: string, f: FetchFn): Promise<true | string> {
     }
     robotsCache.set(k, { t: Date.now(), r })
   }
+  if (r !== 'inaccesibil' && r !== 'tot-interzis' && r.crawlDelay) intarziere.set(u.host, Math.min(r.crawlDelay, 60) * 1000)
   if (r === 'inaccesibil' || r === 'tot-interzis') return `serverul ${u.host} nu răspunde (nici la robots.txt) din această rețea: verifică de pe serverul de producție (unele site-uri publice răspund doar din România)`
   return permis(r, u.pathname + u.search) || `robots.txt de la ${u.host} interzice ${u.pathname}`
 }
-export const golesteRobots = () => robotsCache.clear()
+export const golesteRobots = () => { robotsCache.clear(); intarziere.clear(); ultimaCerere.clear() }
+
+// Crawl-delay din robots.txt (ex. cnadnr.ro: 10 s): pauza minima intre doua cereri catre acelasi server.
+const intarziere = new Map<string, number>()
+const ultimaCerere = new Map<string, number>()
+async function respectaPauza(host: string) {
+  const d = intarziere.get(host) || 0
+  const t = (ultimaCerere.get(host) || 0) + d - Date.now()
+  if (t > 0) await asteapta(t)
+  ultimaCerere.set(host, Date.now())
+}
 
 function decodeaza(buf: ArrayBuffer, tip: string | null) {
   const cs = (tip || '').match(/charset=([^;]+)/i)?.[1]?.trim().toLowerCase()
@@ -82,6 +96,7 @@ export function descarcator(f: FetchFn, cache: CacheHttp, opt: { timeoutMs?: num
   const timeoutMs = opt.timeoutMs ?? 20000, incercari = opt.incercari ?? 3, pauza = opt.pauzaMs ?? 2000
   return async (url: string, o: { conditionat?: boolean; accept?: string; binar?: boolean } = {}): Promise<Descarcare> => {
     if (opt.robots !== false) { const p = await robotsPermite(url, f); if (p !== true) throw new Error(p) }
+    await respectaPauza(new URL(url).host)
     const h: Record<string, string> = { 'User-Agent': USER_AGENT(), 'Accept-Language': 'ro-RO,ro;q=0.9' }
     if (o.accept) h.Accept = o.accept
     const c = cache[url]

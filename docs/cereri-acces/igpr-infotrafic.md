@@ -1,7 +1,6 @@
-<!-- CIORNĂ OPȚIONALĂ. Nu a fost trimisă. Sursa se preia deja automat din paginile publice, cu atribuire (decizia editorului,
-     24.11.2026, statutul „public_notice”). Scrisoarea cere un flux structurat (mai sigur decât citirea paginilor) și confirmarea
-     condițiilor. Se completează câmpurile dintre paranteze drepte și se trimite de pe adresa oficială a firmei editoare.
-     După răspuns: în /admin › Surse de date se trec statutul „Acord primit” și adresa fluxului primit. -->
+<!-- CIORNĂ, DE TRIMIS. Nu a fost trimisă. Sursa NU se preia automat acum (motivul e mai jos și în /admin › Surse de date).
+     Se completează câmpurile dintre paranteze drepte și se trimite de pe adresa oficială a firmei editoare.
+     După răspuns: în /admin › Surse de date se trec statutul „Acord primit”, adresa fluxului primit și se bifează „Pornit”. -->
 
 **[Denumire firma editoare]**
 [Sediul social] · CUI [cod fiscal] · Nr. Reg. Com. [număr]
@@ -16,13 +15,13 @@ Către: **Inspectoratul General al Poliției Române, Centrul INFOTRAFIC, Biroul
 
 Stimate doamne, stimați domni,
 
-Suntem editorul publicației online de știri „Cadranul”, cu ediții pentru toate cele opt regiuni de dezvoltare. Publicăm o hartă a României care arată în timp real starea drumurilor naționale și a autostrăzilor (închideri, lucrări, coloane, condiții meteo). Comunicatele Centrului INFOTRAFIC sunt cea mai bună sursă pentru această hartă.
+Suntem editorul publicației online de știri „Cadranul”, cu ediții pentru toate cele opt regiuni de dezvoltare. Publicăm o hartă a României care arată în timp real starea drumurilor naționale și a autostrăzilor (închideri, lucrări, coloane, condiții meteo). Comunicatele Centrului INFOTRAFIC sunt cea mai bună sursă pentru această hartă. Fișierul robots.txt al site-ului politiaromana.ro interzice accesul automat la paginile Info Trafic, iar noi îl respectăm; de aceea vă scriem.
 
 **Ce date ne-ar folosi**
 
 - Evenimentele de trafic curente: drumul (A, DN, DX), porțiunea (localități sau km), județul, ce se întâmplă (închis, restricționat, coloane, ceață, polei), de când și, dacă se știe, până când.
 - Ideal: un flux RSS, XML sau JSON actualizat la fiecare comunicat, cu un identificator stabil pentru fiecare eveniment.
-- Dacă nu există un flux, permisiunea de a citi automat pagina cu comunicatele Infotrafic de pe politiaromana.ro (vă rugăm să ne indicați adresa exactă).
+- Dacă nu există un flux, permisiunea scrisă de a citi automat pagina Info Trafic de pe politiaromana.ro, la frecvența pe care o stabiliți.
 
 **Cum le-am folosi**
 

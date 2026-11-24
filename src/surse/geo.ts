@@ -67,7 +67,7 @@ const EXTRA: Record<string, [number, number, string]> = {
   Dej: [23.88, 47.14, 'cluj'], Gherla: [23.91, 47.03, 'cluj'], Aiud: [23.72, 46.31, 'alba'], Cugir: [23.55, 45.84, 'alba'],
   Orastie: [23.2, 45.84, 'hunedoara'], Simeria: [23.01, 45.85, 'hunedoara'], Hunedoara: [22.9, 45.75, 'hunedoara'], Hateg: [22.95, 45.61, 'hunedoara'],
   Lupeni: [23.23, 45.36, 'hunedoara'], Ilia: [22.65, 45.93, 'hunedoara'], 'Bumbesti Jiu': [23.39, 45.18, 'gorj'], 'Targu Carbunesti': [23.51, 44.96, 'gorj'],
-  Lelesti: [23.18, 45.1, 'gorj'], Runcu: [23.13, 45.12, 'gorj'], Ranca: [23.7, 45.29, 'gorj'], Faget: [22.18, 45.85, 'timis'], Margina: [22.27, 45.86, 'timis'],
+  Lelesti: [23.18, 45.1, 'gorj'], Runcu: [23.13, 45.12, 'gorj'], Ranca: [23.7, 45.29, 'gorj'], Curpat: [23.65, 45.33, 'valcea'], 'Piscul Negru': [24.63, 45.5, 'arges'], 'Balea Cascada': [24.62, 45.64, 'sibiu'], Faget: [22.18, 45.85, 'timis'], Margina: [22.27, 45.86, 'timis'],
   Lipova: [21.7, 46.09, 'arad'], Bors: [21.81, 47.11, 'bihor'], Alesd: [22.4, 47.06, 'bihor'], 'Sighetu Marmatiei': [23.89, 47.93, 'maramures'],
   Carei: [22.47, 47.69, 'satu-mare'], 'Baile Herculane': [22.41, 44.88, 'caras-severin'], Strehaia: [23.2, 44.62, 'mehedinti'], Simian: [22.7, 44.63, 'mehedinti'],
   'Turnu Magurele': [24.87, 43.75, 'teleorman'], 'Rosiorii de Vede': [24.98, 44.11, 'teleorman'], Zimnicea: [25.37, 43.65, 'teleorman'],

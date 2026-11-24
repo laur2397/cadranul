@@ -1,9 +1,11 @@
 # Fluxurile de date reale (importurile automate)
 
 Sistemul automat (`src/surse/`) aduce datele utile din surse oficiale fără ca redacția să le tasteze.
-Starea la 24.11.2026: **toate cele 8 surse sunt pornite**. ANM și OPCOM sunt date publice oficiale; drumurile, carburanții și
-avariile sunt anunțuri publice preluate automat, cu atribuire, prin **decizia editorului** (statutul `public_notice`).
-Scrisorile din `docs/cereri-acces/` rămân **opționale**: cer un flux structurat, mai sigur decât citirea paginilor.
+Starea la 24.11.2026 (sursele verificate din România de editor, în aceeași zi): **pornite** ANM, OPCOM (date publice
+oficiale), CNAIR (flux RSS), Monitorul prețurilor și Compania de Apă Oltenia (anunțuri publice preluate cu atribuire,
+statutul `public_notice`, decizia editorului). **Oprite**, cu motivul scris în /admin: Poliția Română Infotrafic (robots.txt
+interzice), Distribuție Energie Oltenia (validare anti-robot), Distrigaz Sud Rețele (formular interactiv legat de sesiune).
+Pentru acestea calea este cererea din `docs/cereri-acces/`; pentru celelalte scrisorile sunt opționale (flux structurat).
 
 **Limite care nu se negociază**: robots.txt respectat; nicio ocolire de validare anti-robot, CAPTCHA sau autentificare (sursa
 care le cere apare cu eroare clară în registru); frecvență mică și User-Agent care ne identifică; atribuire și ora actualizării
@@ -49,38 +51,30 @@ npm run surse:worker                    # procesul permanent (al doilea proces p
 
 ## Sursele
 
-| Conector | Colecție | Adresa folosită | Format | Frecvență | Statut | Verificat de aici |
+| Conector | Colecție | Adresa folosită | Format | Frecvență | Statut | Pornit |
 |---|---|---|---|---|---|---|
-| `anm-avertizari` | `weather-alerts` | https://www.meteoromania.ro/avertizari-xml.php (+ …/avertizari-nowcasting-xml.php) | XML | 10 min | public_official | **da, date reale** |
-| `opcom-pzu` | `energy-prices` | https://www.opcom.ro/rapoarte-pzu-raportPIP-export-csv/ZZ/LL/AAAA/ro | CSV (servit ca text/html) | zilnic după 13:15, reîncercare la 20 min | public_official | **da, date reale** |
-| `igpr-infotrafic` | `road-events` | https://www.politiaromana.ro/ro/info-trafic (pagină-listă → cel mai nou comunicat) | HTML | 15 min | public_notice | nu (site-ul nu răspunde din afara României) |
-| `cnair-drumuri` | `road-events` | https://www.cnadnr.ro/ro (→ comunicatul despre drumuri închise / restricții) | HTML | 30 min | public_notice | nu (idem) |
-| `carburanti-cc` | `fuel-prices` | https://monitorulpreturilor.info/pmonsvc/Gas/ `GetUATByName` + `GetGasItemsByUat`, pe reședința fiecărui județ | XML/JSON | zilnic 09:40 (84 de cereri, 1,5 s pauză) | public_notice | nu (idem) |
-| `avarii-deo` | `outages` | https://www.distributieoltenia.ro/ro/intreruperi-programate → PDF-urile săptămânale | HTML + PDF | 6 ore | public_notice | pagina cere validare anti-robot: **blocat, raportat** |
-| `avarii-apa-oltenia` | `outages` | https://www.apaoltenia.ro/index.php/category/anunturi/feed/ | RSS | 60 min | public_notice | **da, date reale** |
-| `avarii-distrigaz-sud` | `outages` | https://www.distrigazsud-retele.ro/clienti/utile-clienti/intreruperi-gaze-naturale/ | HTML | 60 min | public_notice | nu (site în mentenanță / nu răspunde) |
+| `anm-avertizari` | `weather-alerts` | https://www.meteoromania.ro/avertizari-xml.php (+ …/avertizari-nowcasting-xml.php) | XML | 10 min | public_official | **da** |
+| `opcom-pzu` | `energy-prices` | https://www.opcom.ro/rapoarte-pzu-raportPIP-export-csv/ZZ/LL/AAAA/ro | CSV (servit ca text/html) | zilnic după 13:15, reîncercare la 20 min | public_official | **da** |
+| `cnair-drumuri` | `road-events` | https://www.cnadnr.ro/ro/comunicare/comunicate-de-presa/rss | RSS | 30 min (Crawl-delay 10 s respectat) | public_notice | **da** |
+| `carburanti-cc` | `fuel-prices` | https://monitorulpreturilor.info/pmonsvc/Gas/ `GetUATByName` + `GetGasItemsByUat` (un produs pe cerere) | XML | zilnic 09:40 | public_notice | **da** |
+| `avarii-apa-oltenia` | `outages` | https://www.apaoltenia.ro/index.php/category/anunturi/feed/ | RSS | 60 min | public_notice | **da** |
+| `igpr-infotrafic` | `road-events` | https://www.politiaromana.ro/ro/info-trafic | HTML | 15 min | needs_permission | nu: robots.txt interzice |
+| `avarii-deo` | `outages` | https://www.distributieoltenia.ro/ro/intreruperi-programate → PDF-uri | HTML + PDF | 6 ore | needs_permission | nu: validare anti-robot |
+| `avarii-distrigaz-sud` | `outages` | https://www.distrigazsud-retele.ro/clienti/utile-clienti/intreruperi-gaze-naturale/ | formular | 60 min | needs_permission | nu: formular legat de sesiune |
 
-Adresa se poate corecta din /admin › Surse de date (câmpul gol = adresa din cod). Migrarea `20261124_123700_surse_pornite`
-a trecut registrele existente la `public_notice`, pornite, cu adresa din cod.
+Adresa se poate corecta din /admin › Surse de date (câmpul gol = adresa din cod). Migrările `…123700_surse_pornite` și
+`…130000_surse_verificate` aduc registrele existente la starea din tabel.
 
-## Prima rulare pe serverul cu internet (din România): ce verifici
-1. `npm run surse -- all --dry-run` și apoi `npm run surse:status`. Pentru fiecare sursă cu `eroare`, mesajul spune exact ce lipsește.
-2. **IGPR** (`igpr-infotrafic`): dacă apare „pagina … nu conține drumuri și nicio legătură către un comunicat”, deschide
-   politiaromana.ro, găsește pagina cu comunicatele INFOTRAFIC și pune adresa ei în /admin. Verifică în simulare că apar
-   rânduri „+ DN1 …” cu porțiuni corecte.
-3. **CNAIR** (`cnair-drumuri`): la fel, cu pagina de comunicate / „drumuri închise” de pe cnadnr.ro.
-4. **Carburanți** (`carburanti-cc`): serviciul nu a putut fi observat de aici; formatul e presupus. Verifică: `GetUATByName`
-   întoarce un Id pentru „CRAIOVA”; `GetGasItemsByUat` conține prețuri (Price / ProductId / StationId); ID-urile produselor
-   standard (implicit `11,21,31`, se schimbă cu `SURSE_CARBURANTI_PRODUSE`). Dacă numele câmpurilor diferă, salvează un
-   răspuns în `tests/fixtures/surse/monitor-gas-craiova.xml` (înlocuind mostra reconstituită) și ajustează `parsere/monitor.ts`.
-   Media e calculată din stațiile reședinței județului.
-5. **Distribuție Oltenia** (`avarii-deo`): dacă pagina cere în continuare validare („Validation request”, „Blocked”), sursa
-   rămâne în eroare; nu o ocolim. Variante corecte: cererea din `docs/cereri-acces/` sau un export de la ei.
-   Dacă pagina se deschide, verifică că găsește PDF-urile și că rândurile au data corectă (parserul a fost testat pe un PDF real).
-6. **Distrigaz** (`avarii-distrigaz-sud`): verifică structura reală a paginii „Întreruperi gaze naturale” și înlocuiește
-   mostra reconstituită `distrigaz-intreruperi-exemplu.html`. Fiecare paragraf / rând cu o dată „ZZ.LL.AAAA” devine o întrerupere.
-7. **Nowcasting ANM**: la primul cod nowcasting real, salvează răspunsul și verifică textul (`anm-nowcasting-exemplu.xml` e reconstituit).
-8. Pornește worker-ul (`npm run surse:worker` ca serviciu) și urmărește 24 de ore jurnalul „Surse de date: jurnal”.
+## Prima rulare pe server: ce verifici
+1. `npm run surse -- all --dry-run`, apoi `npm run surse:status`. Fiecare sursă cu `eroare` spune ce lipsește.
+2. **CNAIR**: în simulare trebuie să apară închiderile curente (ex. „+ DN67C Obârșia Lotrului–Curpăt”), fără transporturi
+   agabaritice, achiziții sau mentenanță IT. O rulare durează ≥ 10 s (Crawl-delay).
+3. **Carburanți**: prima rulare caută UAT-ul fiecărei reședințe (42 de cereri, apoi ținute minte în registru) și face câte o
+   cerere pe produs (11, 21, 31): ~170 de cereri, ~4-5 minute cu pauza de 1,5 s. Verifică mesajul „fără date pentru N județe”
+   (București sau alte reședințe al căror UAT are alt nume: corectează în `RESEDINTE`, `src/surse/geo.ts`).
+4. **Apa Oltenia, ANM, OPCOM**: verificate cu date reale; nimic special.
+5. Pornește worker-ul (`npm run surse:worker` ca serviciu) și urmărește 24 de ore jurnalul „Surse de date: jurnal”.
+6. Sursele oprite: trimite cererile din `docs/cereri-acces/`; după răspuns, în /admin: statutul „Acord primit”, adresa fluxului, „Pornit”.
 
 ### ANM (coduri meteo pe județe), pornit
 - `<avertizari><avertizare tipMesaj numeTipMesaj dataAparitiei="2026-11-24T10:00" dataExpirarii culoare numeCuloare fenomeneVizate
@@ -105,38 +99,48 @@ a trecut registrele existente la `public_notice`, pornite, cu adresa din cod.
 - Rulează pentru azi și mâine; dacă mâine nu e publicat, reîncearcă la 20 de minute până la 23:30. robots.txt permite.
 - Dacă redacția a scris deja ziua (sau seed-ul demonstrativ), importul nu o atinge: șterge documentul demo ca să-l preia importul.
 
-### Drumuri: IGPR Infotrafic și CNAIR, pornite (anunț public)
-- Comunicatele Infotrafic sunt publice (le preia integral și AGERPRES); CNAIR folosește **cnadnr.ro** (cnair.ro este site-ul
-  unei firme private fără legătură). Ambele site-uri nu au răspuns din mediul de dezvoltare (nici robots.txt): adresele se
-  confirmă la prima rulare. Nu există un set pe data.gov.ro.
-- Conectorul citește pagina dată; dacă ea nu e chiar comunicatul, urmează prima legătură de pe același site al cărei text
-  pomenește Infotrafic / trafic / drumuri închise / restricții.
-- Parserele sunt testate pe formulările reale („DN 1 Ploiești - Brașov: coloane de autovehicule între Nistorești - Comarnic;”,
-  „DN23, Mândrești Munteni (Jud Vrancea) – Olăneasca (Jud. Brăila);”, „DN 1 - km 65+913 - km 66+500, Bărcăneşti;”).
-- **Potrivirea pe hartă** (`src/surse/tronsoane.ts`): 1) localitățile numite care stau pe traseul unui tronson al aceluiași drum
-  (dicționar de ~180 de localități în `src/surse/geo.ts`); 2) kilometrajul (`TABEL_KM`, aproximativ, de verificat cu CNAIR);
-  3) drum cu un singur tronson desenat. Altfel doar semnul de pe hartă la localitate sau la reședința județului.
-- Un eveniment IGPR rămâne 6 ore, unul CNAIR 12 ore, prelungite la fiecare comunicat; ce dispare din comunicat expiră.
-- Dacă un comunicat nu conține nicio frază de forma „DN 1 …: …”, rularea e marcată eroare (format schimbat), nu se șterge nimic.
+### Drumuri
+**CNAIR, pornit.** Fluxul RSS oficial al comunicatelor (verificat 24.11.2026; robots.txt permite, `Crawl-delay: 10`, respectat
+de `src/surse/http.ts`). Fiecare `<item>` are titlu, `description` (corpul Drupal escapat; textul e în `field-item` cu
+`property="content:encoded"`) și `pubDate`. Păstrăm doar comunicatele despre închideri / restricții / lucrări care afectează
+circulația; ignorăm transporturile agabaritice, achizițiile (DALI, SF) și mentenanța IT. Din text: drumul („DN 7C” → `DN7C`),
+porțiunea („între Obârșia Lotrului și Curpăt”), km („între km 61+000 și km 79+000”), începutul („Luni, 23 noiembrie, ora 10:30”
+sau „Marți, 27.10.2026, ora 18:00”, altfel `pubDate`), motivul („din cauza …”). CNAIR nu publică sfârșitul: un comunicat
+rămâne **7 zile** de la început; un comunicat mai nou „se redeschide” pe același drum îl anulează. Atenție: cnair.ro e altă firmă.
 
-### Carburanți: Monitorul prețurilor, pornit (anunț public)
-- Serviciul public fără autentificare al aplicației Monitorul prețurilor (`/pmonsvc/Gas/…`), o dată pe zi, câte două cereri
-  pe județ (UAT-ul reședinței, apoi prețurile), cu 1,5 s pauză. Nu răspunde din afara României, deci formatul e presupus și
-  parserul e tolerant (XML sau JSON, după numele câmpurilor). Dacă trei județe la rând dau eroare și nu avem niciun preț,
-  rularea e eroare cu motivul.
-- Păstrăm doar media pe județ (benzină și motorină standard, GPL; fără premium) și cea mai ieftină stație; prețurile mai vechi
-  de 48 h se ignoră, iar pe site cele vechi apar estompate.
-- Alternativă deschisă, doar națională și săptămânală: Weekly Oil Bulletin al Comisiei Europene (CC BY 4.0).
+**Poliția Română Infotrafic, oprit.** `https://politiaromana.ro/robots.txt` (24.11.2026): `User-agent: * / Disallow: / /
+Allow: /index.php`, deci accesul automat la `/ro/info-trafic` este interzis; nu îl ocolim (nici prin `/index.php`). Pagina are
+liste „Sursa: INFOTRAFIC, Ora 09:15, Categorie Alertă trafic, Status Activ” cu titluri ca „JUDEȚUL ILFOV: CIRCULAȚIE ÎNTRERUPTĂ
+PE AUTOSTRADA A0 …”. Calea: `docs/cereri-acces/igpr-infotrafic.md` (cerem RSS/JSON). Parserul comunicatelor e gata.
 
-### Avarii (curent, apă, gaz), pornite (anunț public)
-- **Distribuție Energie Oltenia**: PDF săptămânal pe județe „Lucrări pentru prevenire și corectare avarii”, coloanele
-  Data | Interval orar | Localitatea | Zona, cu celule centrate vertical. Parserul (`parsere/deo-pdf.ts`, cu `unpdf`) refăce
-  rândurile din poziția textului; testat pe un PDF real (Dolj, 11-17.12.2023, 48 de rânduri). **Pagina cere validare
-  anti-robot (cod 338) / „Blocked” pentru clienții automați: nu o ocolim**; conectorul raportează blocajul în registru.
-- **Compania de Apă Oltenia**: fluxul RSS public al anunțurilor (verificat, date reale): data, intervalul orar, localitatea,
-  „Zone afectate”. Anunțurile de mediu, proiecte, achiziții sunt ignorate; o avarie fără dată ține 12 ore de la publicare.
-- **Distrigaz Sud Rețele**: pagina publică „Întreruperi gaze naturale”; pe 24.11.2026 site-ul arăta pagina de mentenanță
-  „ePortalDGSR indisponibil” (raportată ca eroare). Formatul se verifică la prima rulare.
+**Potrivirea pe hartă** (`src/surse/tronsoane.ts`): 1) localitățile numite care stau pe traseul unui tronson al aceluiași drum
+(dicționar de ~180 de localități în `src/surse/geo.ts`); 2) kilometrajul (`TABEL_KM`, aproximativ); 3) drum cu un singur tronson
+desenat. Altfel doar semnul de pe hartă la localitate sau la reședința județului. Exemplu: DN67C → `dn67c`, DN7C → `dn7c`.
+
+### Carburanți: Monitorul prețurilor, pornit
+Serviciul public al aplicației (fără autentificare; robots.txt: 404, deci fără reguli), format verificat din România pe 24.11.2026:
+- `GET …/pmonsvc/Gas/GetUATByName?uatname=CRAIOVA` → `<UATs><Items><UAT><Id>69900</Id><Name>Municipiul Craiova, Dolj</Name>…`;
+  alegem UAT-ul „Municipiul <Oraș>, <Județ>”. Id-urile se țin minte în registru, deci cererea se face o singură dată.
+- `GET …/GetGasItemsByUat?UatId=69900&CSVGasCatalogProductIds=11&OrderBy=price`: **un singur id pe cerere** („11,21,31” dă
+  eroare de server). 11 = Benzină standard, 21 = Motorină standard, 31 = GPL (`SURSE_CARBURANTI_PRODUSE`, implicit „11,21,31”,
+  e lista din care se face câte o cerere).
+- Răspuns: `<GasItems xmlns="…pmonsvc.Models.Protos"><Products><GasProduct><Catprod><Id>11</Id><Name>Benzină standard</Name>
+  </Catprod>…<Price>8.93</Price><Stationid>P202</Stationid></GasProduct>…<Stations><GasStation><Addr><Addrstring>…</Addrstring>
+  <Uatid>69900</Uatid></Addr><Id>R1399</Id><Name>28 CRAIOVA</Name><Network><Name>PETROM</Name></Network>
+  <Updatedate>24/11/2026 11:05 </Updatedate></GasStation>`. Păstrăm doar stațiile din UAT-ul cerut, actualizate în ultimele 72 h.
+- Rezultat: media pe județ (din stațiile reședinței) pentru benzină, motorină, GPL (opțional) și cea mai ieftină stație
+  („LUKOIL Craiova 2, Calea Severinului: 8,93 lei”). Pe 24.11.2026 la Craiova: benzină 8,96, motorină 10,37 lei/l.
+- 3 cereri pe județ (+1 prima dată), pauză 1,5 s, o dată pe zi.
+
+### Avarii (curent, apă, gaz)
+- **Compania de Apă Oltenia, pornit**: fluxul RSS public al anunțurilor (verificat, date reale): data, intervalul orar,
+  localitatea, „Zone afectate”. Anunțurile de mediu, proiecte, achiziții sunt ignorate; o avarie fără dată ține 12 ore.
+- **Distribuție Energie Oltenia, oprit**: pagina cere validare anti-robot (cod 338) și răspunde „Blocked” clienților automați;
+  nu o ocolim. Parserul PDF-urilor săptămânale („Lucrări pentru prevenire și corectare avarii”, coloanele Data | Interval orar |
+  Localitatea | Zona) e gata și testat pe un PDF real (Dolj, 11-17.12.2023, 48 de rânduri). Calea: cererea din `docs/cereri-acces/`.
+- **Distrigaz Sud Rețele, oprit**: robots.txt permite, dar pagina „Întreruperi gaze naturale” e un formular interactiv care
+  trimite date legate de sesiune la `/wp-content/themes/distrigaz/templates/special/opriri/opriri_ws_requests.php`; nu reproducem
+  astfel de cereri. Cerem un flux structurat (`docs/cereri-acces/distrigaz-sud-retele.md`).
 
 #### Distribuitorii din celelalte regiuni (pentru cererile următoare)
 | Regiune | Curent | Gaz | Apă (operatorul regional din reședință) |

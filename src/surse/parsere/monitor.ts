@@ -1,10 +1,10 @@
 // Monitorul prețurilor (Consiliul Concurenței): serviciul public folosit de aplicația web/mobilă, fără autentificare:
 //   https://monitorulpreturilor.info/pmonsvc/Gas/GetUATByName?uatname=<oraș>          -> UAT-urile (Id, Name)
 //   https://monitorulpreturilor.info/pmonsvc/Gas/GetGasItemsByUat?UatId=<id>&CSVGasCatalogProductIds=<id-uri>&OrderBy=price
-// Serviciul nu răspunde din afara României, deci formatul NU a putut fi observat de aici: parserul e tolerant (XML sau JSON,
-// orice spațiu de nume) și caută după nume de câmp: un „preț” are Price + ProductId + StationId (+ UpdateDate),
-// o stație are Id + Name (+ Addr/Address, Network), un produs are Id + Name. De verificat la prima rulare pe un server din România.
+// Format verificat din România pe 24.11.2026 (mostrele reale monitor-*.xml). Atentie: CSVGasCatalogProductIds accepta UN SINGUR
+// id (11 benzina standard, 21 motorina standard, 31 GPL); „11,21,31” da eroare de server. robots.txt: 404 (fara reguli).
 import { DOMParser } from 'linkedom'
+import { laOraRO } from '../../site/timp'
 
 type Nod = { k: string; v: string; c: Nod[] }
 const loc = (s: string) => s.replace(/^.*:/, '').toLowerCase()
@@ -30,34 +30,57 @@ const toate = (n: Nod, f: (x: Nod) => boolean, out: Nod[] = []): Nod[] => { if (
 const camp = (n: Nod, ...k: string[]) => { for (const x of k) { const c = n.c.find((y) => y.k === x); if (c) return c } return undefined }
 const val = (n: Nod | undefined): string => (!n ? '' : n.v || (camp(n, 'name', 'addrstring', 'value')?.v ?? ''))
 
-/** Id-ul UAT-ului cu numele dat (primul care se potrivește exact, altfel primul) */
-export function idUat(text: string, nume: string): string | null {
-  const l = toate(arbore(text), (n) => !!camp(n, 'id') && !!camp(n, 'name'))
-  const k = nume.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
-  const f = (n: Nod) => val(camp(n, 'name')).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
-  const g = l.find((n) => f(n) === k) || l.find((n) => f(n).includes(k))
+const fara = (x: string) => x.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[-\s]+/g, ' ').trim()
+
+/**
+ * Raspunsul real GetUATByName (verificat 24.11.2026): <UATs><Items><UAT><Id>69900</Id><Name>Municipiul Craiova, Dolj</Name>…
+ * Alegem UAT-ul „Municipiul <Oras>, <Judet>”; altfel unul care contine orasul si judetul.
+ */
+export function idUat(text: string, oras: string, judet?: string): string | null {
+  const l = toate(arbore(text), (n) => n.k === 'uat' || (!!camp(n, 'id') && !!camp(n, 'name') && /municipiul|ora[sș]ul|comuna/i.test(val(camp(n, 'name')))))
+  const o = fara(oras), j = judet ? fara(judet) : ''
+  const nume = (n: Nod) => fara(val(camp(n, 'name')))
+  const g = l.find((n) => nume(n).startsWith(`municipiul ${o}`) && (!j || nume(n).endsWith(`, ${j}`)))
+    || l.find((n) => nume(n).includes(o) && (!j || nume(n).includes(j)))
   return g ? val(camp(g, 'id')) || null : null
 }
 
 export type RandStatie = { judet: string; localitate: string; statie: string; retea: string; adresa: string; produs: string; pret: string; actualizat: string }
 
-/** Prețurile pe stații dintr-un răspuns GetGasItemsByUat -> rânduri pentru media pe județ (parsere/carburanti.ts). */
-export function statiiSiPreturi(text: string, judet: string, oras: string): RandStatie[] {
+/** „24/11/2026 11:05 ” (ora Romaniei) -> ISO */
+function dataMonitor(s: string): string {
+  const m = String(s).trim().match(/^(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2})/)
+  return m ? laOraRO(`${m[3]}-${m[2]}-${m[1]}`, `${m[4]}:${m[5]}`).toISOString() : ''
+}
+
+/**
+ * Raspunsul real GetGasItemsByUat (un singur produs pe cerere, verificat 24.11.2026):
+ *   <GasItems xmlns="…pmonsvc.Models.Protos"><Products><GasProduct><Catprod><Id>11</Id><Name>Benzină standard</Name></Catprod>
+ *     <Network><Name>LUKOIL România S.R.L.</Name></Network><Price>8.93</Price><Stationid>P202</Stationid></GasProduct>…</Products>
+ *   <Stations><GasStation><Addr><Addrstring>B-dul Decebal, nr. 10</Addrstring><Uatid>69900</Uatid></Addr><Id>R1399</Id>
+ *     <Name>28 CRAIOVA</Name><Network><Name>PETROM</Name></Network><Updatedate>24/11/2026 11:05 </Updatedate></GasStation>…
+ * Pastram doar statiile din UAT-ul cerut si preturile actualizate in ultimele `maxOre` ore.
+ */
+export function statiiSiPreturi(text: string, judet: string, oras: string, opt: { uat?: string; acum?: Date; maxOre?: number } = {}): RandStatie[] {
   const r = arbore(text)
-  const preturi = toate(r, (n) => !!camp(n, 'price') && !!camp(n, 'stationid', 'station') && !!camp(n, 'productid', 'product'))
-  if (!preturi.length && !toate(r, (n) => /gasitem|items/.test(n.k)).length) throw new Error('Monitorul prețurilor: răspunsul nu conține prețuri (câmpurile Price/ProductId/StationId lipsesc); formatul s-a schimbat.')
-  const statii = new Map(toate(r, (n) => !!camp(n, 'id') && !!camp(n, 'name') && !!camp(n, 'addr', 'address', 'network', 'networkid')).map((n) => [val(camp(n, 'id')), n]))
-  const produse = new Map(toate(r, (n) => !!camp(n, 'id') && !!camp(n, 'name') && /benz|motor|diesel|gpl|lpg/i.test(val(camp(n, 'name')))).map((n) => [val(camp(n, 'id')), val(camp(n, 'name'))]))
-  const retele = new Map(toate(r, (n) => /network/.test(n.k) && !!camp(n, 'id') && !!camp(n, 'name')).map((n) => [val(camp(n, 'id')), val(camp(n, 'name'))]))
-  return preturi.map((p) => {
-    const sid = val(camp(p, 'stationid')) || val(camp(camp(p, 'station') || { k: '', v: '', c: [] }, 'id'))
-    const pid = val(camp(p, 'productid')) || val(camp(camp(p, 'product') || { k: '', v: '', c: [] }, 'id'))
-    const s = statii.get(sid)
-    const adr = s ? camp(s, 'addr', 'address') : undefined
-    const retea = s ? val(camp(s, 'network')) || retele.get(val(camp(s, 'networkid'))) || '' : ''
-    return {
-      judet, localitate: oras, statie: s ? val(camp(s, 'name')) : sid, retea, adresa: adr ? val(adr) : '',
-      produs: produse.get(pid) || val(camp(p, 'productname')) || pid, pret: val(camp(p, 'price')), actualizat: val(camp(p, 'updatedate', 'updated', 'date')),
-    }
-  })
+  if (r.k !== 'gasitems') throw new Error(`Monitorul prețurilor: aștept <GasItems>, am primit <${r.k}>; formatul s-a schimbat.`)
+  const statii = new Map(toate(r, (n) => n.k === 'gasstation').map((n) => [val(camp(n, 'id')), n]))
+  const acum = (opt.acum || new Date()).getTime(), max = (opt.maxOre ?? 72) * 3600e3
+  const out: RandStatie[] = []
+  for (const p of toate(r, (n) => n.k === 'gasproduct')) {
+    const s = statii.get(val(camp(p, 'stationid')))
+    if (!s) continue
+    const adr = camp(s, 'addr')
+    if (opt.uat && adr && val(camp(adr, 'uatid')) && val(camp(adr, 'uatid')) !== opt.uat) continue
+    const actualizat = dataMonitor(val(camp(s, 'updatedate')))
+    if (!actualizat || acum - Date.parse(actualizat) > max) continue
+    const cat = camp(p, 'catprod')
+    const retea = val(camp(camp(s, 'network') || { k: '', v: '', c: [] }, 'name')).replace(/\s*\b(Rom[aâ]nia|S\.?\s?R\.?\s?L\.?|S\.?\s?A\.?)(?=\s|$)\.?/gi, '').trim()
+    const nume = val(camp(s, 'name'))
+    out.push({
+      judet, localitate: oras, statie: retea && !fara(nume).includes(fara(retea)) ? `${retea} ${nume}` : nume, retea: '',
+      adresa: adr ? val(camp(adr, 'addrstring')) : '', produs: cat ? val(camp(cat, 'name')) : val(camp(p, 'name')), pret: val(camp(p, 'price')), actualizat,
+    })
+  }
+  return out
 }

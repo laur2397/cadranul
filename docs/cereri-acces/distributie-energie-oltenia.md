@@ -1,7 +1,6 @@
-<!-- CIORNĂ OPȚIONALĂ. Nu a fost trimisă. Sursa se preia deja automat din paginile publice, cu atribuire (decizia editorului,
-     24.11.2026, statutul „public_notice”). Scrisoarea cere un flux structurat (mai sigur decât citirea paginilor) și confirmarea
-     condițiilor. Se completează câmpurile dintre paranteze drepte și se trimite de pe adresa oficială a firmei editoare.
-     După răspuns: în /admin › Surse de date se trec statutul „Acord primit” și adresa fluxului primit. -->
+<!-- CIORNĂ, DE TRIMIS. Nu a fost trimisă. Sursa NU se preia automat acum (motivul e mai jos și în /admin › Surse de date).
+     Se completează câmpurile dintre paranteze drepte și se trimite de pe adresa oficială a firmei editoare.
+     După răspuns: în /admin › Surse de date se trec statutul „Acord primit”, adresa fluxului primit și se bifează „Pornit”. -->
 
 **[Denumire firma editoare]**
 [Sediul social] · CUI [cod fiscal] · Nr. Reg. Com. [număr]
@@ -16,7 +15,7 @@ Către: **Distribuție Energie Oltenia S.A., Direcția Comunicare**
 
 Stimate doamne, stimați domni,
 
-Suntem editorul publicației online „Cadranul”, cu o ediție dedicată regiunii Sud-Vest Oltenia. Pe harta regiunii arătăm cititorilor unde și când se oprește curentul. Publicați săptămânal, pe județe, documentele „Lucrări pentru prevenire și corectare avarii”; le preluăm automat din documentele publicate, cu menționarea sursei, și am prefera un format structurat. Am constatat că pagina cere o validare anti-robot pentru clienții automați, pe care nu o ocolim.
+Suntem editorul publicației online „Cadranul”, cu o ediție dedicată regiunii Sud-Vest Oltenia. Pe harta regiunii arătăm cititorilor unde și când se oprește curentul. Publicați săptămânal, pe județe, documentele „Lucrări pentru prevenire și corectare avarii”; am dori să le preluăm automat, cu menționarea sursei. Pagina cere o validare anti-robot pentru clienții automați, pe care nu o ocolim; de aceea vă rugăm să ne indicați o cale permisă.
 
 **Ce date ne-ar folosi**
 
