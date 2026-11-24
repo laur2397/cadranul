@@ -1,0 +1,196 @@
+# REGISTRUL DE PROPRIETATE Cadranul
+#
+# Acesta este singura sursa de adevar despre ce detine publicatia si cine are acces.
+# Auditul automat compara realitatea cu acest fisier, in ambele directii:
+#   - un element din registru care nu mai exista in realitate  -> constatare
+#   - un element in realitate care nu e in registru            -> constatare, prioritate maxima
+#
+# De ce exista acest fisier:
+# La site-ul anterior al proprietarului, o agentie terta a detinut singurele conturi de
+# administrator timp de doi ani si jumatate, un cont de publicitate nedeclarat al acelei agentii
+# a servit reclame si a incasat, iar pluginul de backup era legat de contul unui tert cu acces de
+# telecomanda. Nimeni nu a observat, pentru ca nu exista nicio lista cu care sa compare cineva.
+#
+# REGULA: nimic nu se adauga in productie inainte de a fi aici.
+# REGULA: `titular_legal` este intotdeauna firma editoare. Daca nu este, se noteaza ca risc deschis.
+
+meta:
+  publicatie: Cadranul
+  editor_legal: "[Denumire SRL]"          # se completeaza cu firma reala
+  cui: "[RO…]"
+  ultima_revizuire: "2026-11-24"
+  revizuit_de: "[nume]"
+  cadenta_revizuire: trimestrial
+
+# ---------------------------------------------------------------------------
+# DOMENII
+# ---------------------------------------------------------------------------
+domenii:
+  - nume: cadranul.ro
+    registrar: "[ROTLD / registrar]"
+    titular_legal: "[Denumire SRL]"       # NU o persoana fizica, NU o agentie
+    contact_administrativ: "[email]"
+    expira: "[AAAA-LL-ZZ]"
+    reinnoire_automata: true
+    blocare_transfer: true                # registrar lock pornit
+    acces:
+      - cine: "[nume]"
+        rol: proprietar
+        doi_factori: true
+
+# ---------------------------------------------------------------------------
+# DNS
+# ---------------------------------------------------------------------------
+dns:
+  furnizor: "[Cloudflare / altul]"
+  cont_detinut_de: "[Denumire SRL]"
+  nameservere_asteptate: []               # se completeaza; auditul verifica sa nu se schimbe
+  inregistrari_asteptate:
+    # Lista completa a inregistrarilor asteptate (A, AAAA, CNAME, MX, TXT, CAA, NS) se tine
+    # ca fisier de configurare DNS versionat (DNSControl sau echivalent). Orice inregistrare
+    # din zona care nu e in fisier este constatare.
+    verificari:                           # fiecare marcaj de verificare, cu motivul lui
+      - tip: TXT
+        valoare: "[google-site-verification=…]"
+        pentru: "Google Search Console"
+        cont: "[adresa contului Google]"
+    # Auditul semnaleaza ORICE marcaj de verificare care nu e aici.
+    # La site-ul anterior existau trei marcaje Google diferite: trei conturi straine
+    # isi revendicasera domeniul si nimeni nu stia de ele.
+  spf: "[v=spf1 … -all]"                  # NU permisiv. `+all` sau `?all` = constatare blocanta
+  dmarc: "[v=DMARC1; p=…]"                # obligatoriu
+  dkim: true
+
+# ---------------------------------------------------------------------------
+# GAZDUIRE SI INFRASTRUCTURA
+# ---------------------------------------------------------------------------
+infrastructura:
+  - serviciu: "[furnizor server]"
+    rol: "aplicatie web"
+    cont_detinut_de: "[Denumire SRL]"
+    plata_de: "[card firma]"              # daca plateste altcineva, controlul e al altcuiva
+    regiune_date: "[UE / RO]"
+    acces: []
+  - serviciu: "[baza de date]"
+    rol: "PostgreSQL"
+    cont_detinut_de: "[Denumire SRL]"
+  - serviciu: "[stocare fisiere media]"
+    cont_detinut_de: "[Denumire SRL]"
+  - serviciu: "[backup]"
+    cont_detinut_de: "[Denumire SRL]"     # NICIODATA contul unui furnizor sau al unei agentii
+    destinatie: "[unde ajung copiile]"
+    restaurare_testata_la: "[AAAA-LL-ZZ]" # un backup netestat nu este backup
+
+# ---------------------------------------------------------------------------
+# CONTURI GOOGLE
+# ---------------------------------------------------------------------------
+google:
+  cont_principal: "[adresa@cadranul.ro]"      # cont de organizatie, NU gmail personal
+  proprietate_detinuta_de: "[Denumire SRL]"
+  servicii:
+    - nume: "Google Analytics"
+      identificator: "[G-…]"
+      proprietar: "[adresa@cadranul.ro]"
+    - nume: "Google Search Console"
+      proprietar: "[adresa@cadranul.ro]"
+    - nume: "Google AdSense"
+      identificator: "[ca-pub-…]"
+      proprietar: "[adresa@cadranul.ro]"
+      cont_bancar_incasare: "[banca firmei]"   # se verifica efectiv, nu se presupune
+    - nume: "Google Ad Manager"
+      identificator: "[cod retea]"
+      proprietar: "[adresa@cadranul.ro]"
+    - nume: "Google Tag Manager"
+      identificator: "[GTM-…]"
+      proprietar: "[adresa@cadranul.ro]"
+  # Auditul verifica: fiecare identificator care apare in pagina publica este in lista de mai sus.
+  # Un identificator in pagina care nu e aici inseamna ca cineva incaseaza de pe site-ul nostru.
+
+# ---------------------------------------------------------------------------
+# PUBLICITATE
+# ---------------------------------------------------------------------------
+publicitate:
+  ads_txt: "generat automat din acest registru la fiecare publicare; fisierul servit este doar rezultatul, nu se editeaza de mana"
+  # Auditul verifica in AMBELE directii:
+  #   - fiecare cont care serveste reclame pe site apare in ads.txt
+  #   - fiecare linie din ads.txt corespunde unui partener activ si inregistrat aici
+  parteneri: []
+  rapoarte_lunare_catre: "[adresa@cadranul.ro]"
+  # La site-ul anterior, rapoartele lunare de publicitate plecau automat catre o adresa
+  # de e-mail a unei agentii terte, cu numele expeditorului setat pe numele acelei agentii.
+
+# ---------------------------------------------------------------------------
+# COD SI PUBLICARE
+# ---------------------------------------------------------------------------
+cod:
+  depozit: "[organizatie/puls]"
+  detinut_de: "[Denumire SRL]"            # organizatie, nu cont personal
+  colaboratori: []                        # auditul semnaleaza orice colaborator neinregistrat
+  ramura_protejata: main
+  secrete_in: "[manager de secrete]"      # niciodata in depozit
+
+# ---------------------------------------------------------------------------
+# SERVICII TERTE CU ACCES LA DATE SAU LA SITE
+# ---------------------------------------------------------------------------
+terti:
+  # Pentru fiecare: ce poate face, ce date vede, cine plateste, cum se revoca accesul.
+  # Orice serviciu care poate restaura site-ul poate si sa il distruga.
+  - serviciu: "[nume]"
+    ce_poate_face: "[citire / scriere / restaurare]"
+    date_la_care_are_acces: "[…]"
+    cont_detinut_de: "[Denumire SRL]"
+    platit_de: "[Denumire SRL]"
+    revocare: "[cum se taie accesul, in pasi]"
+    revizuit_la: "[AAAA-LL-ZZ]"
+
+# ---------------------------------------------------------------------------
+# INVENTARUL COMPLET AL SERVICIILOR (fiecare completat inainte de folosire)
+# ---------------------------------------------------------------------------
+# Fiecare intrare: cont_detinut_de, platit_de, administratori, doi_factori, ce date vede,
+# cum se revoca accesul, revizuit_la. Nicio intrare goala nu ajunge in productie.
+servicii:
+  cloudflare:            { cont_detinut_de: "[Denumire SRL]", rol: "DNS, protectie, cache, reguli crawlere" }
+  hetzner_cloud:         { cont_detinut_de: "[Denumire SRL]", rol: "servere" }
+  hetzner_object_storage: { cont_detinut_de: "[Denumire SRL]", rol: "imagini" }
+  bunny_cdn:             { cont_detinut_de: "[Denumire SRL]", rol: "livrare si optimizare imagini" }
+  coolify:               { cont_detinut_de: "[Denumire SRL]", rol: "publicare; are acces de nivel root la servere, deci risc maxim" }
+  github_organizatie:    { cont_detinut_de: "[Denumire SRL]", rol: "cod, integrare continua" }
+  manager_secrete:       { cont_detinut_de: "[Denumire SRL]", rol: "parole si chei" }
+  plausible:             { cont_detinut_de: "[Denumire SRL]", rol: "analiza editoriala" }
+  sentry:                { cont_detinut_de: "[Denumire SRL]", rol: "erori" }
+  newsletter:            { cont_detinut_de: "[Denumire SRL]", rol: "liste de abonati; date personale" }
+  smtp_si_email:         { cont_detinut_de: "[Denumire SRL]", rol: "MX, SPF, DKIM, DMARC" }
+  platforma_consimtamant: { cont_detinut_de: "[Denumire SRL]", rol: "consimtamant, TCF" }
+  meta_business:         { cont_detinut_de: "[Denumire SRL]", rol: "pixel, pagini; verificati proprietarul Business Manager, nu doar administratorii" }
+  brat_sati:             { cont_detinut_de: "[Denumire SRL]", rol: "eticheta de audit de trafic" }
+  google_publisher_center: { cont_detinut_de: "[Denumire SRL]", rol: "Google News" }
+  server_ai_local:       { cont_detinut_de: "[Denumire SRL]", rol: "n8n si Ollama; vede materiale-sursa, deci acces strict" }
+
+# ---------------------------------------------------------------------------
+# CONTURI IN APLICATIE
+# ---------------------------------------------------------------------------
+aplicatie:
+  administratori: []                      # lista completa, cu nume real si doi factori
+  # Auditul compara aceasta lista cu conturile reale din baza de date, saptamanal.
+  # Un administrator aparut fara sa fie aici este constatare blocanta.
+  politica:
+    doi_factori_obligatoriu: true
+    revizuire_conturi: lunar
+    dezactivare_dupa_inactivitate_zile: 90
+    revocare_furnizor: "in aceeasi zi in care se incheie lucrarea"
+
+# ---------------------------------------------------------------------------
+# RETELE SOCIALE
+# ---------------------------------------------------------------------------
+retele_sociale: []
+  # Pentru fiecare: platforma, cont, cine e proprietar (nu doar administrator),
+  # cine are acces, si daca monetizarea are cont de incasari configurat.
+  # La site-ul anterior, pagina de Facebook acumula venit lunar pe care nu l-a incasat
+  # nimeni, pentru ca nimeni nu configurase un cont de plata. Banii s-au pierdut.
+
+# ---------------------------------------------------------------------------
+# RISCURI DESCHISE
+# ---------------------------------------------------------------------------
+riscuri_deschise: []
+  # Orice element din registru unde `titular_legal` nu este firma editoare,
+  # sau unde accesul nu poate fi revocat unilateral de editor.
