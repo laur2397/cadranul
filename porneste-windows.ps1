@@ -100,10 +100,12 @@ NEXT_PUBLIC_ADS_ON_REFUSAL=none
   }
 
   # 4. Programe, tabele, continut demonstrativ (doar prima data: seed-ul sterge baza)
-  if (-not (Test-Path 'node_modules\next')) { & npm ci --no-audit --no-fund; if ($LASTEXITCODE) { throw 'npm ci a esuat' } }
-  & npx payload migrate; if ($LASTEXITCODE) { throw 'migrarea a esuat' }
+  if (-not (Test-Path 'node_modules\next')) { Write-Host 'Instalez programele site-ului (prima data: 5-10 minute)...'; & npm ci --no-audit --no-fund; if ($LASTEXITCODE) { throw 'npm ci a esuat' } }
+  Write-Host 'Actualizez tabelele bazei de date (1-3 minute, fara mesaje intre timp)...'
+  & node node_modules\payload\bin.js migrate --force-accept-warning; if ($LASTEXITCODE) { throw 'migrarea a esuat' }
+  Write-Host 'Tabele actualizate.'
   $marker = Join-Path $Pg 'seed-facut-utf8'
-  if (-not (Test-Path $marker)) { & npm run seed; if ($LASTEXITCODE) { throw 'seed a esuat' }; New-Item $marker | Out-Null }
+  if (-not (Test-Path $marker)) { Write-Host 'Incarc continutul demonstrativ (1-2 minute)...'; & npm run seed; if ($LASTEXITCODE) { throw 'seed a esuat' }; New-Item $marker | Out-Null }
 
   # 5. Porneste site-ul (cu -CuSurse: si worker-ul importurilor automate, jurnal in .cadranul-tools\surse.log)
   if ($CuSurse) {
