@@ -3,11 +3,13 @@
 //   npm run surse -- all [--dry-run]            toate sursele pornite
 //   npm run surse:status                        registrul: ce e pornit, ultima rulare, ultima eroare
 //   npm run surse:worker                        procesul permanent care le ruleaza dupa program (al doilea proces pe server)
+import { completeazaLantulCA } from '../src/surse/ca'
 import 'dotenv/config'
 import { getPayload, type Payload } from 'payload'
 import config from '../src/payload.config'
 import { CONECTORI, conector } from '../src/surse/conectori'
 import { asiguraRegistru, curataJurnal, eScadent, opritDinMediu, ruleazaConector, ruleazaToate, type Raport } from '../src/surse/rulare'
+completeazaLantulCA()
 
 const arg = process.argv.slice(2)
 const dryRun = arg.includes('--dry-run')

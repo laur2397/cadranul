@@ -15,6 +15,7 @@ const asteapta = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
 // ——— robots.txt (RFC 9309, varianta simpla: grupul nostru sau „*”, reguli Allow/Disallow pe prefix, cea mai lunga castiga)
 type Reguli = { allow: string[]; disallow: string[]; crawlDelay?: number }
+const robotsCauza = new Map<string, string>()
 const robotsCache = new Map<string, { t: number; r: Reguli | 'tot-interzis' | 'inaccesibil' }>()
 
 export function parseazaRobots(txt: string, agent = 'cadranulbot'): Reguli {
@@ -62,13 +63,15 @@ async function robotsPermite(url: string, f: FetchFn): Promise<true | string> {
       const res = await f(`${k}/robots.txt`, { headers: { 'User-Agent': USER_AGENT() }, signal: AbortSignal.timeout(15000) })
       // 4xx = nu exista reguli; 5xx = serverul nu poate spune, deci nu descarcam (RFC 9309)
       r = res.ok ? parseazaRobots(await res.text()) : res.status >= 500 ? 'inaccesibil' : { allow: [], disallow: [] }
-    } catch {
+    } catch (e) {
       r = 'inaccesibil'
+      const cauza = (e as { cause?: { code?: string; message?: string } })?.cause
+      robotsCauza.set(k, cauza?.code || cauza?.message || (e as Error)?.message || '')
     }
     robotsCache.set(k, { t: Date.now(), r })
   }
   if (r !== 'inaccesibil' && r !== 'tot-interzis' && r.crawlDelay) intarziere.set(u.host, Math.min(r.crawlDelay, 60) * 1000)
-  if (r === 'inaccesibil' || r === 'tot-interzis') return `serverul ${u.host} nu răspunde (nici la robots.txt) din această rețea: verifică de pe serverul de producție (unele site-uri publice răspund doar din România)`
+  if (r === 'inaccesibil' || r === 'tot-interzis') return `serverul ${u.host} nu răspunde (nici la robots.txt${robotsCauza.get(k) ? `; motiv: ${robotsCauza.get(k)}` : ''}) din această rețea: verifică de pe serverul de producție (unele site-uri publice răspund doar din România)`
   return permis(r, u.pathname + u.search) || `robots.txt de la ${u.host} interzice ${u.pathname}`
 }
 export const golesteRobots = () => { robotsCache.clear(); intarziere.clear(); ultimaCerere.clear() }
