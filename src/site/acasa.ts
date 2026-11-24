@@ -203,7 +203,7 @@ export function paginaAcasa(snap: Snap, ed: Reg | null, acum: Date, ultimaVizita
       <aside class="side" aria-label="Pe scurt">
         <section class="card" id="energie" aria-labelledby="enT">
           <div class="card-h"><h3 id="enT">Curentul azi, oră de oră</h3><small>${snap.pret ? 'OPCOM' : ''}</small></div>
-          ${pr ? h`<div class="dialwrap"><div class="dial" id="dial">${raw(dialHTML(pr, ora, min))}</div><div class="dialtxt" id="dialTxt">${raw(dialTextHTML(pr, ora))}</div></div><div class="dialtip" id="dialTip" aria-live="polite"></div>` : h`<p class="dialtxt">Prețurile de azi nu au fost încă publicate.</p>`}
+          ${pr ? h`<div class="dialwrap"><div class="dial" id="dial">${raw(dialHTML(pr, ora, min))}</div><div class="dialtxt" id="dialTxt">${raw(dialTextHTML(pr, ora, '/energie', snap.pretMaine?.values))}</div></div><div class="dialtip" id="dialTip" aria-live="polite"></div>` : h`<p class="dialtxt">Prețurile de azi nu au fost încă publicate.</p>`}
           <div class="demo">${pretVechi ? `Ultimele prețuri publicate: ${pretVechi}. ` : ''}${process.env.NEXT_PUBLIC_DEMO === 'true' && !snap.pret?.imp ? 'Cifre demonstrative. ' : ''}${snap.pret ? notaSursa([snap.pret], acum) + ' ' : ''}Contează direct dacă ai contract cu preț dinamic.</div>
         </section>
         <section class="card" aria-labelledby="fuT">
@@ -286,7 +286,7 @@ export function paginaAcasa(snap: Snap, ed: Reg | null, acum: Date, ultimaVizita
     rss: ed ? { titlu: `Cadranul ${ed.short}`, href: `/editie/${ed.slug}/rss.xml` } : undefined,
     preincarca: ['/map/relief.jpg'],
     client: {
-      pagina: 'acasa', harta: dh, pr: pr || null, catch: sel.catchUp.map((a) => a.slug), seven: sel.seven.map((a) => a.slug),
+      pagina: 'acasa', harta: dh, pr: pr || null, prMaine: snap.pretMaine?.values || null, catch: sel.catchUp.map((a) => a.slug), seven: sel.seven.map((a) => a.slug),
       fuel: fc.f, fuelNat: snap.fuelNat.azi, pensie: pensie.pct, regN, nlDemo: process.env.NEXT_PUBLIC_DEMO === 'true',
     },
   })

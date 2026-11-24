@@ -3,8 +3,18 @@
 import { fmt, pad } from './format'
 import { smooth, type Punct } from './harta'
 
-export const pcol = (p: number) => (p < 400 ? 'var(--ok)' : p < 700 ? '#7FA4C8' : p < 950 ? 'var(--orange)' : 'var(--red)')
-export const plab = (p: number) => (p < 400 ? 'ieftin' : p < 700 ? 'mediu' : p < 950 ? 'scump' : 'foarte scump')
+// Culoarea si eticheta unei ore se dau FATA DE RESTUL ZILEI (sfertul cel mai ieftin al intervalului zilei = ieftin).
+// Pragurile fixe (400/700/950 lei) facusera ca, la preturile reale din noiembrie 2026 (760-1800 lei), aproape
+// toata ziua sa iasa „foarte scump”, adica fara nicio informatie. Fara ziua intreaga, raman pragurile fixe.
+const treapta = (p: number, pr?: number[]) => {
+  if (pr && pr.length) {
+    const mn = Math.min(...pr), mx = Math.max(...pr)
+    if (mx - mn > 1) { const f = (p - mn) / (mx - mn); return f < 0.25 ? 0 : f < 0.5 ? 1 : f < 0.75 ? 2 : 3 }
+  }
+  return p < 400 ? 0 : p < 700 ? 1 : p < 950 ? 2 : 3
+}
+export const pcol = (p: number, pr?: number[]) => ['var(--ok)', '#7FA4C8', 'var(--orange)', 'var(--red)'][treapta(p, pr)]
+export const plab = (p: number, pr?: number[]) => ['ieftin', 'mediu', 'scump', 'foarte scump'][treapta(p, pr)]
 const BADGE: Record<string, string> = { 'var(--ok)': '#08734E', '#7FA4C8': '#3D6A94', 'var(--orange)': '#B04F00', 'var(--red)': '#B81D23' }
 const SOLID: Record<string, string> = { 'var(--ok)': '#0B9A68', '#7FA4C8': '#7FA4C8', 'var(--orange)': '#EE7A0C', 'var(--red)': '#D3242B' }
 
@@ -33,7 +43,7 @@ export function dialHTML(pr: number[], h: number, m: number): string {
   g += `<path d="${arc((f / 24) * Math.PI * 2, ((f + 3) / 24) * Math.PI * 2, 96)}" stroke="var(--ok)" stroke-width="3" fill="none" stroke-linecap="round"/>`
   pr.forEach((v, i) => {
     const a = ((i + 0.5) / 24) * Math.PI * 2, r0 = 57, r1 = 57 + 6 + ((v - 200) / (maxP - 200 || 1)) * 32
-    g += `<line class="bar" data-h="${i}" x1="${(Math.sin(a) * r0).toFixed(2)}" y1="${(-Math.cos(a) * r0).toFixed(2)}" x2="${(Math.sin(a) * r1).toFixed(2)}" y2="${(-Math.cos(a) * r1).toFixed(2)}" stroke="${pcol(v)}" stroke-width="${i === h ? 8 : 6}" opacity="${i === h ? 1 : 0.9}"><title>${pad(i)}:00–${pad((i + 1) % 24)}:00: ${fmt(v)} lei/MWh</title></line>`
+    g += `<line class="bar" data-h="${i}" x1="${(Math.sin(a) * r0).toFixed(2)}" y1="${(-Math.cos(a) * r0).toFixed(2)}" x2="${(Math.sin(a) * r1).toFixed(2)}" y2="${(-Math.cos(a) * r1).toFixed(2)}" stroke="${pcol(v, pr)}" stroke-width="${i === h ? 8 : 6}" opacity="${i === h ? 1 : 0.9}"><title>${pad(i)}:00–${pad((i + 1) % 24)}:00: ${fmt(v)} lei/MWh</title></line>`
   })
   ;[0, 6, 12, 18].forEach((x) => { const a = (x / 24) * Math.PI * 2; g += `<text class="hl" x="${(Math.sin(a) * 108).toFixed(2)}" y="${(-Math.cos(a) * 108).toFixed(2)}">${x}</text>` })
   const a = ((h + m / 60) / 24) * Math.PI * 2
@@ -42,11 +52,17 @@ export function dialHTML(pr: number[], h: number, m: number): string {
   return `<svg viewBox="-115 -115 230 230" role="img" aria-label="Cadranul zilei: prețul curentului pentru fiecare oră. Acum ${fmt(p)} lei pe MWh.">${g}</svg><div class="ctr"><b class="num">${fmt(p)}</b><small>lei/MWh, acum</small></div>${tbl}`
 }
 
-/** Textul de langa cadran (cel mai ieftin / scump, recomandarea) */
-export function dialTextHTML(pr: number[], h: number, link = '/energie'): string {
+/** Textul de langa cadran (cel mai ieftin / scump, recomandarea). `maine`: preturile publicate pentru maine, daca exista. */
+export function dialTextHTML(pr: number[], h: number, link = '/energie', maine?: number[] | null): string {
   const p = pr[h]
   const { minP, maxP, ieftin, scump } = extreme(pr)
-  return `<div class="minmax"><div><small>Cel mai ieftin</small><b class="num" style="color:var(--ok)">${ieftin}:00</b> <span>${fmt(minP)} lei</span></div><div><small>Cel mai scump</small><b class="num" style="color:var(--red)">${scump}:00</b> <span>${fmt(maxP)} lei</span></div></div><p class="big">Acum e <span class="pricebadge" style="background:${BADGE[pcol(p)]}">${plab(p)}</span>. ${h < ieftin ? `Pornește mașina de spălat la ${ieftin}:00, nu seara.` : h <= ieftin + 2 ? 'E un moment bun pentru mașina de spălat.' : `Mâine, cel mai probabil tot pe la ${ieftin}:00.`}</p><a href="${link}" style="font-size:13.5px;font-weight:650;color:var(--brand)">De ce e prânzul ieftin</a>`
+  const m = maine && maine.length === 24 ? extreme(maine) : null
+  const sfat = h < ieftin ? `Pornește mașina de spălat la ${ieftin}:00, nu seara.`
+    : h <= ieftin + 2 ? 'E un moment bun pentru mașina de spălat.'
+    : m ? `Mâine, cel mai ieftin la ${m.ieftin}:00 (${fmt(m.minP)} lei).`
+    : 'Prețurile pentru mâine apar după ora 14:00.'
+  const pranz = ieftin >= 10 && ieftin <= 15
+  return `<div class="minmax"><div><small>Cel mai ieftin</small><b class="num" style="color:var(--ok)">${ieftin}:00</b> <span>${fmt(minP)} lei</span></div><div><small>Cel mai scump</small><b class="num" style="color:var(--red)">${scump}:00</b> <span>${fmt(maxP)} lei</span></div></div><p class="big">Acum e <span class="pricebadge" style="background:${BADGE[pcol(p, pr)]}">${plab(p, pr)}</span> față de restul zilei. ${sfat}</p><a href="${link}" style="font-size:13.5px;font-weight:650;color:var(--brand)">${pranz ? 'De ce e prânzul ieftin' : 'De ce se schimbă prețul de la o oră la alta'}</a>`
 }
 
 /** Graficul pe ore din articol si din pagina /energie */
@@ -56,7 +72,7 @@ export function curbaHTML(pr: number[], h: number, m: number): string {
   const x = (i: number) => pl + (i / 23) * (W - pl - 8), y = (v: number) => pt + (1 - v / max) * (H - pt - pb)
   const pts: Punct[] = pr.map((v, i) => [x(i), y(v)])
   const line = smooth(pts)
-  const stops = pr.map((v, i) => `<stop offset="${((i / 23) * 100).toFixed(1)}%" stop-color="${SOLID[pcol(v)]}"/>`).join('')
+  const stops = pr.map((v, i) => `<stop offset="${((i / 23) * 100).toFixed(1)}%" stop-color="${SOLID[pcol(v, pr)]}"/>`).join('')
   const nx = x(h + m / 60)
   const f = fereastraIeftina(pr)
   const { minP, maxP, ieftin, scump } = extreme(pr)

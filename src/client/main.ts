@@ -269,9 +269,9 @@ function renderDial() {
   if (!C.pr) return
   const { h, m } = acum()
   const d = $('#dial'); if (d) d.innerHTML = dialHTML(C.pr, h, m)
-  const t = $('#dialTxt'); if (t) t.innerHTML = dialTextHTML(C.pr, h, (t.querySelector('a') as HTMLAnchorElement | null)?.getAttribute('href') || '/energie')
+  const t = $('#dialTxt'); if (t) t.innerHTML = dialTextHTML(C.pr, h, (t.querySelector('a') as HTMLAnchorElement | null)?.getAttribute('href') || '/energie', C.prMaine)
   const cv = $('#artCurve'); if (cv) cv.innerHTML = curbaHTML(C.pr, h, m)
-  $$('#dial .bar').forEach((b) => { const i = +b.dataset.h!; b.addEventListener('mouseenter', () => { const tip = $('#dialTip'); if (tip) tip.textContent = `${pad(i)}:00–${pad((i + 1) % 24)}:00: ${fmt(C.pr[i])} lei/MWh, ${plab(C.pr[i])}` }) })
+  $$('#dial .bar').forEach((b) => { const i = +b.dataset.h!; b.addEventListener('mouseenter', () => { const tip = $('#dialTip'); if (tip) tip.textContent = `${pad(i)}:00–${pad((i + 1) % 24)}:00: ${fmt(C.pr[i])} lei/MWh, ${plab(C.pr[i], C.pr)}` }) })
 }
 
 /* ============ calculatoare ============ */

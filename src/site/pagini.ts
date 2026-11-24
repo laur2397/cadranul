@@ -48,7 +48,7 @@ export function paginaEnergie(snap: Snap, ed: Reg | null, acum: Date): string {
   const main = h`${antet([['Cadranul', '/'], ['Energie', '']], 'Prețul curentului, oră de oră', h`Prețul de pe bursa de energie pentru fiecare oră a zilei și prețurile la carburant în fiecare județ. ${demoNota('Cifre demonstrative.')}`)}
 <section class="sec" style="padding-top:0"><div class="energy-page">
   <section class="card" id="energie" aria-labelledby="enT"><div class="card-h"><h2 class="h3" id="enT">Curentul azi${snap.pret && snap.pret.day !== ziRO(acum) ? ` (${snap.pret.day})` : ''}</h2><small>${snap.pret?.source || 'OPCOM'}</small></div>${snap.pret?.imp ? h`<p class="demo src" style="margin:0 0 6px">${notaSursa([snap.pret], acum)}</p>` : ''}
-    ${pr ? h`<div class="dialwrap"><div class="dial" id="dial">${raw(dialHTML(pr, ora, min))}</div><div class="dialtxt" id="dialTxt">${raw(dialTextHTML(pr, ora, '/articol/curentul-cel-mai-ieftin-la-pranz'))}</div></div><div class="dialtip" id="dialTip" aria-live="polite"></div>` : h`<p>Prețurile de azi nu au fost încă publicate.</p>`}
+    ${pr ? h`<div class="dialwrap"><div class="dial" id="dial">${raw(dialHTML(pr, ora, min))}</div><div class="dialtxt" id="dialTxt">${raw(dialTextHTML(pr, ora, '/articol/curentul-cel-mai-ieftin-la-pranz', maine?.values))}</div></div><div class="dialtip" id="dialTip" aria-live="polite"></div>` : h`<p>Prețurile de azi nu au fost încă publicate.</p>`}
   </section>
   <div class="embed" style="margin:0"><h2 class="h3">Graficul zilei</h2><p class="sub">Lei/MWh, pe piața pentru ziua următoare. Linia punctată arată ora la care citești.</p>${pr ? h`<div id="artCurve">${raw(curbaHTML(pr, ora, min))}</div>` : ''}
     ${pr ? h`<div class="hgrid" role="table" aria-label="Prețul pe ore">${pr.map((v, i) => h`<div role="row" class="${i === ora ? 'now' : ''}"><span role="cell">${String(i).padStart(2, '0')}:00</span><b role="cell" style="color:${v < 400 ? 'var(--ok-ink)' : v >= 950 ? 'var(--red-ink)' : 'inherit'}">${fmt(v)}</b></div>`)}</div>` : ''}
@@ -61,7 +61,7 @@ export function paginaEnergie(snap: Snap, ed: Reg | null, acum: Date): string {
 </section>
 ${arts.length ? h`<section class="sec"><div class="sec-h"><div><h2>Știri despre energie</h2></div></div>${grila(arts, acum, snap)}</section>` : ''}`
   return pagina({ snap, acum, ed, titlu: 'Prețul curentului azi, oră de oră, și carburantul pe județe | Cadranul', descriere: 'Cât costă curentul în fiecare oră a zilei pe bursa de energie, când e cel mai ieftin și cât costă benzina, motorina și GPL în județul tău.', cale: '/energie', main,
-    jsonld: [jsonLdFirimituri([['Cadranul', '/'], ['Energie', '/energie']])], client: { pagina: 'energie', pr: pr || null, fuel: fc.f } })
+    jsonld: [jsonLdFirimituri([['Cadranul', '/'], ['Energie', '/energie']])], client: { pagina: 'energie', pr: pr || null, prMaine: maine?.values || null, fuel: fc.f } })
 }
 
 // ——— /joburi

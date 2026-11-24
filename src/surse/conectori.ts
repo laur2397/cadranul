@@ -149,9 +149,15 @@ export const CARBURANTI: Conector = {
       try {
         let id = c.memorie[`uat:${slug}`]
         if (!id) {
-          const u = await c.descarca(`${c.url}GetUATByName?uatname=${encodeURIComponent(oras.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase())}`, { conditionat: false })
-          verificaBlocaj(u.text, 'Monitorul prețurilor')
-          id = idUat(u.text, oras, slug === 'bucuresti' ? undefined : judet) || ''
+          // serviciul cauta exact: „Piatra-Neamț” are cratima, deci incercam si varianta cu cratima
+          const nume = oras.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase()
+          for (const v of nume.includes(' ') ? [nume, nume.replace(/ /g, '-')] : [nume]) {
+            const u = await c.descarca(`${c.url}GetUATByName?uatname=${encodeURIComponent(v)}`, { conditionat: false })
+            verificaBlocaj(u.text, 'Monitorul prețurilor')
+            id = idUat(u.text, oras, slug === 'bucuresti' ? undefined : judet) || ''
+            if (id) break
+            await pauza()
+          }
           if (!id) { erori.push(`${oras}: UAT negăsit`); continue }
           c.memorie[`uat:${slug}`] = id
           await pauza()

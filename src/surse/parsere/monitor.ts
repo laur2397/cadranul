@@ -38,8 +38,9 @@ const fara = (x: string) => x.normalize('NFD').replace(/[\u0300-\u036f]/g, '').t
  */
 export function idUat(text: string, oras: string, judet?: string): string | null {
   const l = toate(arbore(text), (n) => n.k === 'uat' || (!!camp(n, 'id') && !!camp(n, 'name') && /municipiul|ora[sș]ul|comuna/i.test(val(camp(n, 'name')))))
-  const o = fara(oras), j = judet ? fara(judet) : ''
-  const nume = (n: Nod) => fara(val(camp(n, 'name')))
+  const fc = (x: string) => fara(x).replace(/-/g, ' ')
+  const o = fc(oras), j = judet ? fc(judet) : ''
+  const nume = (n: Nod) => fc(val(camp(n, 'name')))
   const g = l.find((n) => nume(n).startsWith(`municipiul ${o}`) && (!j || nume(n).endsWith(`, ${j}`)))
     || l.find((n) => nume(n).includes(o) && (!j || nume(n).includes(j)))
   return g ? val(camp(g, 'id')) || null : null
