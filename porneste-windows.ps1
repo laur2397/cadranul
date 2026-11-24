@@ -44,7 +44,13 @@ process.on('SIGINT', stop); process.on('SIGTERM', stop)
 setInterval(() => {}, 1 << 30)
 '@ | Set-Content -Encoding UTF8 (Join-Path $Pg 'pg.mjs')
 $Log = Join-Path $Pg 'log.txt'
-if (Test-Path $Log) { Remove-Item $Log }
+# Daca o pornire anterioara a lasat baza de date deschisa (fereastra inchisa), o oprim intai
+Get-CimInstance Win32_Process -Filter "Name='node.exe'" -ErrorAction SilentlyContinue |
+  Where-Object { $_.CommandLine -like '*pg.mjs*' -or $_.CommandLine -like '*cadranul-tools*postgres*' } |
+  ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+Get-Process -Name postgres -ErrorAction SilentlyContinue | Where-Object { $_.Path -like "$T*" } | Stop-Process -Force -ErrorAction SilentlyContinue
+Start-Sleep 2
+if (Test-Path $Log) { Remove-Item $Log -Force -ErrorAction SilentlyContinue }
 $pgProc = Start-Process -FilePath (Join-Path $NodeDir 'node.exe') -ArgumentList @('pg.mjs', (Join-Path $Pg 'data-utf8')) `
   -WorkingDirectory $Pg -RedirectStandardOutput $Log -RedirectStandardError (Join-Path $Pg 'err.txt') -WindowStyle Hidden -PassThru
 try {
@@ -83,5 +89,5 @@ NEXT_PUBLIC_ADS_ON_REFUSAL=none
 }
 finally {
   if ($wProc -and -not $wProc.HasExited) { & taskkill /T /F /PID $wProc.Id 2>&1 | Out-Null }
-  if ($pgProc -and -not $pgProc.HasExited) { Stop-Process -Id $pgProc.Id -Force -ErrorAction SilentlyContinue }
+  if ($pgProc -and -not $pgProc.HasExited) { & taskkill /T /F /PID $pgProc.Id 2>&1 | Out-Null }
 }
