@@ -7,6 +7,10 @@ Set-Location -Path $PSScriptRoot
 $T = Join-Path $env:USERPROFILE '.cadranul-tools'
 New-Item -ItemType Directory -Force -Path $T | Out-Null
 Write-Host '== Cadranul: pornire locala ==' -ForegroundColor Cyan
+if ($PSScriptRoot -like '*OneDrive*') {
+  Write-Host 'ATENTIE: folderul Cadranul e in OneDrive. OneDrive sincronizeaza zeci de mii de fisiere ale site-ului' -ForegroundColor Yellow
+  Write-Host 'si poate bloca pornirea. Recomandat: muta folderul Cadranul in C:\Cadranul si porneste de acolo.' -ForegroundColor Yellow
+}
 
 # 1. Node 24.22.3, direct de pe nodejs.org
 $NodeDir = Join-Path $T 'node-v24.22.3-win-x64'
@@ -53,14 +57,21 @@ $Err = Join-Path $Pg ("err-" + (Get-Date -Format 'yyyyMMdd-HHmmss') + ".txt")
 Get-ChildItem $Pg -Filter 'log-*.txt' -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -Skip 5 | Remove-Item -Force -ErrorAction SilentlyContinue
 Get-ChildItem $Pg -Filter 'err-*.txt' -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -Skip 5 | Remove-Item -Force -ErrorAction SilentlyContinue
 $pgProc = $null
+$ok = $false
 if (PortDeschis 5434) {
-  # Baza de date ramasa pornita de data trecuta raspunde: o folosim pe ea
-  Write-Host 'Baza de date era deja pornita: o folosesc.'
-  $ok = $true
-} else {
+  # Ceva asculta pe portul bazei de date. Verificam ca raspunde cu adevarat (nu doar ca e deschis):
+  # o baza ramasa agatata de data trecuta accepta conexiunea, dar nu raspunde, si totul se blocheaza.
+  if (Test-Path 'node_modules\pg') {
+    Write-Host 'Verific baza de date ramasa pornita de data trecuta...'
+    & node scripts\verifica-db.mjs 'postgres://cadranul:cadranul@127.0.0.1:5434/cadranul'
+    if ($LASTEXITCODE -eq 0) { Write-Host 'Baza de date era deja pornita si raspunde: o folosesc.'; $ok = $true }
+    else { Write-Host 'Baza de date ramasa nu raspunde: o repornesc.' -ForegroundColor Yellow }
+  }
+}
+if (-not $ok) {
   # Ceva ramas agatat de data trecuta, dar care nu raspunde: il oprim
   Write-Host 'Opresc eventuale resturi de la pornirea anterioara...'
-  Get-Process -Name postgres,pg_ctl -ErrorAction SilentlyContinue | Where-Object { -not $_.Path -or $_.Path -like "$T*" } | ForEach-Object { & taskkill /T /F /PID $_.Id 2>&1 | Out-Null }
+  Get-Process -Name postgres,pg_ctl -ErrorAction SilentlyContinue | Where-Object { -not $_.Path -or $_.Path -like "$T*" -or $_.Path -like "*embedded-postgres*" } | ForEach-Object { & taskkill /T /F /PID $_.Id 2>&1 | Out-Null }
   Get-Process -Name node -ErrorAction SilentlyContinue | Where-Object { $_.Path -like "$NodeDir*" -and $_.Id -ne $PID } | ForEach-Object { & taskkill /T /F /PID $_.Id 2>&1 | Out-Null }
   Start-Sleep 3
   $PidFile = Join-Path $DataDir 'postmaster.pid'
@@ -87,11 +98,11 @@ try {
   Write-Host 'Baza de date pornita.'
 
   # 3. Setari locale
-  if (-not ((Test-Path .env) -and (Select-String -Path .env -Pattern '5434/cadranul' -Quiet))) {
+  if (-not ((Test-Path .env) -and (Select-String -Path .env -Pattern '127.0.0.1:5434/cadranul' -SimpleMatch -Quiet))) {
     $bytes = New-Object byte[] 32; [Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($bytes)
     $secret = -join ($bytes | ForEach-Object { $_.ToString('x2') })
     @"
-DATABASE_URI=postgres://cadranul:cadranul@localhost:5434/cadranul
+DATABASE_URI=postgres://cadranul:cadranul@127.0.0.1:5434/cadranul
 PAYLOAD_SECRET=$secret
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
 NEXT_PUBLIC_DEMO=true
@@ -101,8 +112,8 @@ NEXT_PUBLIC_ADS_ON_REFUSAL=none
 
   # 4. Programe, tabele, continut demonstrativ (doar prima data: seed-ul sterge baza)
   if (-not (Test-Path 'node_modules\next')) { Write-Host 'Instalez programele site-ului (prima data: 5-10 minute)...'; & npm ci --no-audit --no-fund; if ($LASTEXITCODE) { throw 'npm ci a esuat' } }
-  Write-Host 'Actualizez tabelele bazei de date (1-3 minute, fara mesaje intre timp)...'
-  & node node_modules\payload\bin.js migrate --force-accept-warning; if ($LASTEXITCODE) { throw 'migrarea a esuat' }
+  Write-Host 'Actualizez tabelele bazei de date (sub un minut, cu mesaje pentru fiecare pas)...'
+  & npm run migreaza; if ($LASTEXITCODE) { throw 'migrarea a esuat (vezi mesajele de mai sus)' }
   Write-Host 'Tabele actualizate.'
   $marker = Join-Path $Pg 'seed-facut-utf8'
   if (-not (Test-Path $marker)) { Write-Host 'Incarc continutul demonstrativ (1-2 minute)...'; & npm run seed; if ($LASTEXITCODE) { throw 'seed a esuat' }; New-Item $marker | Out-Null }

@@ -20,6 +20,7 @@
     "audit:registru": "tsx scripts/valideaza-registru.ts",
     "typecheck": "tsc --noEmit",
     "migrate": "payload migrate",
+    "migreaza": "tsx scripts/migreaza.ts",
     "shots": "tsx scripts/capturi.ts",
     "surse": "tsx scripts/surse.ts",
     "surse:status": "tsx scripts/surse.ts status",

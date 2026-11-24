@@ -49,7 +49,7 @@ export default buildConfig({
   editor: lexicalEditor(),
   secret: process.env.PAYLOAD_SECRET || '',
   typescript: { outputFile: path.resolve(dirname, 'payload-types.ts') },
-  db: postgresAdapter({ pool: { connectionString: process.env.DATABASE_URI || '' }, push: false }),
+  db: postgresAdapter({ pool: { connectionString: process.env.DATABASE_URI || '', connectionTimeoutMillis: 20000 }, push: false }),
   sharp,
   telemetry: false,
 })
