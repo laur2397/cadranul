@@ -207,8 +207,10 @@ async function incarca(): Promise<Snap> {
   const f2 = (d: Doc): Fuel => ({ day: d.day, petrol: d.petrol, diesel: d.diesel, lpg: d.lpg ?? 0, note: d.cheapestNote || undefined, ...prov(d) })
   // preturi „vechi”: ziua lor e mai veche de ieri (peste 48 de ore)
   const ieri = ziPlus(azi, -1)
-  for (const [k, l] of peJudet) { const j = judById.get(k); if (j) fuel.set(j.slug, { azi: f2(l[0]), ieri: l[1] ? f2(l[1]) : null, vechi: l[0].day < ieri }) }
-  const proaspete = [...fuel.values()].filter((f) => !f.vechi)
+  for (const [k, l] of peJudet) { const j = judById.get(k); if (j) fuel.set(j.slug, { azi: f2(l[0]), ieri: l[1] && !!l[1].importer === !!l[0].importer ? f2(l[1]) : null, vechi: l[0].day < ieri }) }
+  // cand exista preturi reale (importate), media tarii se face doar din ele: nu amestecam cifre reale cu cele demonstrative
+  const reale = [...fuel.values()].some((f) => f.azi.imp && !f.vechi)
+  const proaspete = [...fuel.values()].filter((f) => !f.vechi && (!reale || f.azi.imp))
   const baza = proaspete.length ? proaspete : [...fuel.values()]
   const medie = (sel: (f: { azi: Fuel; ieri: Fuel | null }) => Fuel | null): [number, number, number] | null => {
     const l = baza.map(sel).filter(Boolean) as Fuel[]

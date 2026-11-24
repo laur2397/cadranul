@@ -75,7 +75,8 @@ if [ ! -f "$T/pg/seed-facut-utf8" ]; then echo "Incarc continutul demonstrativ (
 
 # 5. Porneste (cu --cu-surse: si worker-ul importurilor automate, jurnal in ~/.cadranul-tools/surse.log)
 if [ "$1" = "--cu-surse" ]; then
-  npm run surse:worker > "$T/surse.log" 2>&1 &
+  # o rulare completa imediat (aduce datele reale de azi), apoi worker-ul dupa program
+  ( npm run surse -- all; npm run surse:worker ) > "$T/surse.log" 2>&1 &
   WPID=$!
   echo "Importurile automate rulează (jurnal: $T/surse.log, stare: npm run surse:status)"
 fi

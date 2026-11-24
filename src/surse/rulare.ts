@@ -107,6 +107,13 @@ export async function scrie(payload: Payload, con: Conector, elemente: Element[]
         const w: Doc = { day: { equals: data.day } }
         if (col === 'fuel-prices') w.county = { equals: data.county }
         const al = (await payload.find({ collection: col, where: w as never, limit: 1, depth: 0, overrideAccess: true })).docs[0] as Doc | undefined
+        // continutul DEMONSTRATIV (seed) nu e al redactiei: datele reale il inlocuiesc
+        const demo = al && !al.importer && !al.editedByHuman && /demonstrativ/i.test(String(al.source || ''))
+        if (al && demo) {
+          r.updated++; r.schimbari.push(`~ ${titlu(data)}: înlocuiesc cifrele demonstrative cu cele reale`)
+          if (!opt.dryRun) await payload.update({ collection: col, id: al.id, data: data as never, overrideAccess: true, context: CTX, depth: 0 })
+          continue
+        }
         if (al) { r.skipped++; r.schimbari.push(`= ${titlu(data)}: există deja, scris de ${al.importer || 'redacție'}; nu-l ating`); continue }
       }
       r.created++; r.schimbari.push(`+ ${titlu(data)}`)

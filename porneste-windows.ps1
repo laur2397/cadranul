@@ -120,7 +120,7 @@ NEXT_PUBLIC_ADS_ON_REFUSAL=none
 
   # 5. Porneste site-ul (cu -CuSurse: si worker-ul importurilor automate, jurnal in .cadranul-tools\surse.log)
   if ($CuSurse) {
-    $wProc = Start-Process -FilePath 'cmd.exe' -ArgumentList @('/c', 'npm run surse:worker > "' + (Join-Path $T 'surse.log') + '" 2>&1') -WindowStyle Hidden -PassThru
+    $wProc = Start-Process -FilePath 'cmd.exe' -ArgumentList @('/c', '(npm run surse -- all & npm run surse:worker) > "' + (Join-Path $T 'surse.log') + '" 2>&1') -WindowStyle Hidden -PassThru
     Write-Host 'Importurile automate ruleaza (stare: npm run surse:status)' -ForegroundColor Green
   }
   Start-Job { Start-Sleep 25; Start-Process 'http://localhost:3000' } | Out-Null
