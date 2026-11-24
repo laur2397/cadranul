@@ -186,6 +186,7 @@ Lista e orientativă (concesiunile se mai schimbă); se verifică pe site-ul ANR
 | `travel-times` | API de rutare | manual / demo |
 | `pharmacies` | Colegiul Farmaciștilor / DSP | manual / demo |
 | `jobs` | parteneriate cu site-uri de joburi | manual / demo |
+| `outages` (curent, gaz; restul țării) | DEER (Muntenia Nord, Transilvania Nord și Sud): harta publică are în spate o interfață cu avariile **în curs** și lucrările programate, dar nu e publicată pentru reutilizare → cerere `docs/cereri-acces/distributie-energie-electrica-romania.md`. Rețele Electrice (București, Ilfov, Giurgiu, Banat, Dobrogea) și Delgaz (Moldova; curent și gaz): pagini cu verificare anti-robot → cereri `retele-electrice-romania.md`, `delgaz-grid.md`. DEO și Distrigaz: cererile existente. | doar Apa Oltenia automat (25.11.2026) |
 
 ## În producție
 Un al doilea proces lângă site, cu același `.env`: `npm run surse:worker` (vezi README, secțiunea „Importurile automate”).
