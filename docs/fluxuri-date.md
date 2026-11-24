@@ -58,12 +58,34 @@ npm run surse:worker                    # procesul permanent (al doilea proces p
 | `cnair-drumuri` | `road-events` | https://www.cnadnr.ro/ro/comunicare/comunicate-de-presa/rss | RSS | 30 min (Crawl-delay 10 s respectat) | public_notice | **da** |
 | `carburanti-cc` | `fuel-prices` | https://monitorulpreturilor.info/pmonsvc/Gas/ `GetUATByName` + `GetGasItemsByUat` (un produs pe cerere) | XML | zilnic 09:40 | public_notice | **da** |
 | `avarii-apa-oltenia` | `outages` | https://www.apaoltenia.ro/index.php/category/anunturi/feed/ | RSS | 60 min | public_notice | **da** |
+| `tomtom-trafic` | `road-events` | https://api.tomtom.com/maps/orbis/traffic/incidents/details (rezervă: API clasic v5 `incidentDetails`) | JSON | 25 min (`TOMTOM_MINUTE`) | partner_api | **da, doar cu `TOMTOM_API_KEY`** |
 | `igpr-infotrafic` | `road-events` | https://www.politiaromana.ro/ro/info-trafic | HTML | 15 min | needs_permission | nu: robots.txt interzice |
 | `avarii-deo` | `outages` | https://www.distributieoltenia.ro/ro/intreruperi-programate → PDF-uri | HTML + PDF | 6 ore | needs_permission | nu: validare anti-robot |
 | `avarii-distrigaz-sud` | `outages` | https://www.distrigazsud-retele.ro/clienti/utile-clienti/intreruperi-gaze-naturale/ | formular | 60 min | needs_permission | nu: formular legat de sesiune |
 
 Adresa se poate corecta din /admin › Surse de date (câmpul gol = adresa din cod). Migrările `…123700_surse_pornite` și
 `…130000_surse_verificate` aduc registrele existente la starea din tabel.
+
+## Trafic în timp real (TomTom)
+
+Accidentele, cozile, drumurile închise și lucrările de pe hartă vin, în timp real, din **TomTom Traffic** („Incident Details”),
+un API cu licență, nu din preluarea unui site. Pași (o singură dată, îi face proprietarul, cu contul lui):
+
+1. Cont gratuit pe https://developer.tomtom.com (fără card). În contul tău: „Keys” › copiezi cheia (are acces la Traffic API).
+2. În fișierul `.env` al site-ului adaugi un rând: `TOMTOM_API_KEY=cheia-ta`. Cheia nu se trimite nimănui și nu intră în git.
+3. Repornești site-ul cu importurile (`porneste-mac.sh --cu-surse` / `porneste-windows-cu-date-reale.cmd`).
+
+Cum lucrează: România e împărțită în ~36 de dreptunghiuri (API-ul acceptă cel mult 10.000 km² pe cerere), câte o cerere pe
+dreptunghi la fiecare rulare. Planul gratuit are 2.500 de cereri pe zi, deci implicit o rulare la 25 de minute (~2.100 de
+cereri pe zi). Mai des (`TOMTOM_MINUTE=10` sau `5`) se plătește: la 10 minute ~5.200 de cereri pe zi, peste limită ~0,75 USD
+la 1.000 de cereri. Se păstrează doar ce contează pentru cititor: drumuri închise, accidente, polei / inundații, cozi de peste
+5 minute (`TOMTOM_MIN_INTARZIERE`), lucrări și vehicule defecte pe autostrăzi și drumuri naționale. Textele sunt scrise în
+română după categoria incidentului; pe site apare „Sursa: TomTom Traffic”. Incidentele dispar singure când TomTom nu le mai
+raportează. Înainte de lansarea publică: se citesc condițiile TomTom de afișare și păstrare a datelor (atribuire, cât timp se
+pot ține) și, dacă e nevoie, se trece pe planul plătit / contract.
+
+Pentru o instalare demonstrativă, `npm run curata-demo` scoate de pe hartă drumurile, avariile, codurile meteo, timpii de
+parcurs și frazele de sus demonstrative, ca să rămână doar datele reale (articolele și joburile demonstrative rămân).
 
 ## Prima rulare pe server: ce verifici
 1. `npm run surse -- all --dry-run`, apoi `npm run surse:status`. Fiecare sursă cu `eroare` spune ce lipsește.

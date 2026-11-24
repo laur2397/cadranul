@@ -1,0 +1,17 @@
+{
+  "_nota": "Raspuns CONSTRUIT dupa structura documentata a TomTom Incident Details (v5: categorii numerice, length/delay), nu descarcat. De inlocuit cu unul real la prima rulare cu cheie.",
+  "incidents": [
+    { "type": "Feature", "geometry": { "type": "LineString", "coordinates": [[24.93, 44.80], [24.96, 44.79], [24.99, 44.78]] },
+      "properties": { "id": "acc-a1", "iconCategory": 1, "magnitudeOfDelay": 3, "startTime": "2026-11-25T06:40:00Z", "endTime": null, "from": "Pitești", "to": "Ștefănești", "length": 4200, "delay": 1260, "roadNumbers": ["E81", "A1"] } },
+    { "type": "Feature", "geometry": { "type": "LineString", "coordinates": [[26.10, 44.44], [26.11, 44.44]] },
+      "properties": { "id": "jam-mic", "iconCategory": 6, "magnitudeOfDelay": 1, "from": "Bd. Unirii", "to": "Piața Unirii", "length": 300, "delay": 90, "roadNumbers": [] } },
+    { "type": "Feature", "geometry": { "type": "LineString", "coordinates": [[26.10, 44.45], [26.12, 44.46]] },
+      "properties": { "id": "jam-mare", "iconCategory": "jam", "magnitudeOfDelay": "major", "from": "Calea Victoriei", "to": "Piața Victoriei", "lengthInMeters": 1800, "delayInSeconds": 720, "roadNumbers": [] } },
+    { "type": "Feature", "geometry": { "type": "LineString", "coordinates": [[24.62, 45.55], [24.62, 45.60]] },
+      "properties": { "id": "inchis-dn7c", "iconCategory": 8, "magnitudeOfDelay": 4, "startTime": "2026-10-30T22:00:00Z", "endTime": "2027-06-01T00:00:00Z", "from": "Bâlea Lac", "to": "Bâlea Cascadă", "length": 26000, "delay": 0, "roadNumbers": ["DN7C"] } },
+    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [19.05, 47.50] },
+      "properties": { "id": "budapesta", "iconCategory": 1, "magnitudeOfDelay": 3, "roadNumbers": ["M1"] } },
+    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [23.80, 44.32] },
+      "properties": { "id": "lucrari-dj", "iconCategory": 9, "magnitudeOfDelay": 1, "roadNumbers": ["DJ561"] } }
+  ]
+}

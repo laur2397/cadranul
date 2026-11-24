@@ -18,7 +18,7 @@ export type Rezultat = {
 }
 
 export type Descarcare = { status: number; text: string; url: string; neschimbat: boolean; etag?: string; lastModified?: string; bytes?: Uint8Array }
-export type Descarca = (url: string, opt?: { conditionat?: boolean; accept?: string; binar?: boolean }) => Promise<Descarcare>
+export type Descarca = (url: string, opt?: { conditionat?: boolean; accept?: string; binar?: boolean; antete?: Record<string, string> }) => Promise<Descarcare>
 
 export type ContextRulare = {
   url: string
@@ -48,5 +48,9 @@ export type Conector = {
   expiraLipsa: boolean
   cerere?: string
   note?: string
+  /** API cu licenta (cheie proprie): robots.txt nu se aplica, conditiile sunt cele din contract */
+  api?: boolean
+  /** variabila din .env fara de care conectorul nu ruleaza (ex. TOMTOM_API_KEY) */
+  cheieMediu?: string
   ruleaza: (ctx: ContextRulare) => Promise<Rezultat>
 }

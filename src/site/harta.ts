@@ -84,6 +84,11 @@ export function dateHarta(snap: Snap, ed: Reg | null, ctx: ContextHarta) {
     out: snap.out.map((o) => ({ k: o.k, t: o.t, d: o.d, city: o.city, r: o.regKey, x: o.x, y: o.y })),
     wx: snap.wx.map((w) => ({ c: w.key, city: w.city, t: w.temp, w: w.w, cond: w.cond, lvl: w.level === 'principal' ? 0 : w.level === 'secundar' ? 1 : 2, x: w.x, y: w.y })),
     legVreme: coduri.length ? coduri.map((a) => a.text).join('; ') : 'Niciun cod meteo activ',
+    // sub harta: de unde vin datele fiecarui strat si daca printre ele sunt si demonstrative
+    surse: Object.fromEntries(([['drumuri', snap.ev], ['avarii', snap.out], ['vreme', snap.alerte]] as [string, { src: string; imp: boolean }[]][]).map(([k, l]) => [k, {
+      s: [...new Set(l.filter((x) => x.imp && x.src).map((x) => x.src))],
+      demo: l.some((x) => !x.imp && /demonstrativ/i.test(x.src || '')) || (process.env.NEXT_PUBLIC_DEMO === 'true' && l.some((x) => !x.imp)),
+    }])),
     nVreme: coduri.length,
     jobsReg, jobsCty,
     jobs: joburi.map((j) => ({ t: j.title, co: j.employer, pay: j.pay, pr: j.promo ? 1 : 0, href: `/joburi/${j.slug}` })),

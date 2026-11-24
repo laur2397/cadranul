@@ -97,11 +97,12 @@ function decodeaza(buf: ArrayBuffer, tip: string | null) {
  */
 export function descarcator(f: FetchFn, cache: CacheHttp, opt: { timeoutMs?: number; incercari?: number; robots?: boolean; pauzaMs?: number } = {}) {
   const timeoutMs = opt.timeoutMs ?? 20000, incercari = opt.incercari ?? 3, pauza = opt.pauzaMs ?? 2000
-  return async (url: string, o: { conditionat?: boolean; accept?: string; binar?: boolean } = {}): Promise<Descarcare> => {
+  return async (url: string, o: { conditionat?: boolean; accept?: string; binar?: boolean; antete?: Record<string, string> } = {}): Promise<Descarcare> => {
     if (opt.robots !== false) { const p = await robotsPermite(url, f); if (p !== true) throw new Error(p) }
     await respectaPauza(new URL(url).host)
     const h: Record<string, string> = { 'User-Agent': USER_AGENT(), 'Accept-Language': 'ro-RO,ro;q=0.9' }
     if (o.accept) h.Accept = o.accept
+    if (o.antete) Object.assign(h, o.antete)
     const c = cache[url]
     if (o.conditionat !== false && c?.etag) h['If-None-Match'] = c.etag
     if (o.conditionat !== false && c?.lastModified) h['If-Modified-Since'] = c.lastModified
@@ -126,7 +127,8 @@ export function descarcator(f: FetchFn, cache: CacheHttp, opt: { timeoutMs?: num
         const buf = await res.arrayBuffer()
         const text = o.binar ? '' : decodeaza(buf, res.headers.get('content-type'))
         const etag = res.headers.get('etag') || undefined, lastModified = res.headers.get('last-modified') || undefined
-        if (etag || lastModified) cache[url] = { etag, lastModified }
+        // adresele cu cheie de API nu se pastreaza in registru (cheia ar ajunge in baza de date)
+        if ((etag || lastModified) && !/[?&]key=/.test(url)) cache[url] = { etag, lastModified }
         return { status: res.status, text, url, neschimbat: false, etag, lastModified, ...(o.binar ? { bytes: new Uint8Array(buf) } : {}) }
       } catch (e) {
         if ((e as { definitiv?: boolean }).definitiv) throw e

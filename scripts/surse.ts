@@ -50,7 +50,7 @@ async function worker(payload: Payload) {
       for (const c of CONECTORI) {
         if (opreste) break
         const d = reg.get(c.key)!
-        if (!d.enabled || opritDinMediu(c.key) || d.legalStatus === 'needs_permission') continue
+        if (!d.enabled || opritDinMediu(c.key) || d.legalStatus === 'needs_permission' || (c.cheieMediu && !process.env[c.cheieMediu])) continue
         if (eScadent(c, d, acum)) await ruleazaConector(payload, c.key)
       }
       if (Date.now() - ultimaCuratenie > 24 * 3600e3) { await curataJurnal(payload); ultimaCuratenie = Date.now() }

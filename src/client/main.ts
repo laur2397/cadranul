@@ -215,7 +215,9 @@ function renderLegend() {
     avarii: '<span><i class="sw dot" style="background:#1D7FD1"></i>Apă</span><span><i class="sw dot" style="background:#E59A00"></i>Curent</span><span><i class="sw dot" style="background:#E0542B"></i>Gaz</span>',
     joburi: `<span><i class="sw dot" style="background:var(--brand)"></i>Anunțuri active, pe ${ED ? 'județe' : 'regiuni'}</span>`,
   }
-  lg.innerHTML = m[L] + `<span class="mapnote demo">Actualizat la ${esc($('#clock')?.textContent || '')}.${C.demo ? ' Date demonstrative.' : ''}</span>`
+  const sr = H.surse && H.surse[L]
+  const nota = sr ? `${sr.s.length ? ` Sursa: ${sr.s.join(', ')}.` : ''}${sr.demo ? ' Date demonstrative.' : ''}` : (C.demo ? ' Date demonstrative.' : '')
+  lg.innerHTML = m[L] + `<span class="mapnote demo">Actualizat la ${esc($('#clock')?.textContent || '')}.${esc(nota)}</span>`
 }
 function renderLayers() {
   const el = $('#layers'); if (!el) return

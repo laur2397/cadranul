@@ -77,7 +77,7 @@ function egal(camp: string, a: unknown, b: unknown, rulant: boolean): boolean {
   return String(a) === String(b)
 }
 
-export async function scrie(payload: Payload, con: Conector, elemente: Element[], opt: { dryRun?: boolean; acum: Date; log: (m: string) => void }) {
+export async function scrie(payload: Payload, con: Conector, elemente: Element[], opt: { dryRun?: boolean; acum: Date; log: (m: string) => void; pastreazaLipsa?: boolean }) {
   const r = { created: 0, updated: 0, expired: 0, skipped: 0, deleted: 0, schimbari: [] as string[] }
   const col = con.collection
   const jud = new Map(((await payload.find({ collection: 'counties', pagination: false, depth: 0, overrideAccess: true })).docs as Doc[]).map((d) => [d.slug, d.id]))
@@ -120,7 +120,8 @@ export async function scrie(payload: Payload, con: Conector, elemente: Element[]
       if (!opt.dryRun) await payload.create({ collection: col, data: data as never, overrideAccess: true, context: CTX, depth: 0 })
     }
   }
-  if (con.expiraLipsa) {
+  // rulare incompleta (o parte din sursa n-a raspuns): ce lipseste nu inseamna ca s-a terminat
+  if (con.expiraLipsa && !opt.pastreazaLipsa) {
     for (const d of ale) {
       if (vazute.has(d.externalId) || d.editedByHuman) continue
       if (d.until && Date.parse(d.until) <= opt.acum.getTime()) {
@@ -178,15 +179,17 @@ export async function ruleazaConector(payload: Payload, key: string, opt: Optiun
 
   const motivOprit = opt.fortat ? '' : opritDinMediu(key) ? 'oprit din mediu (SURSE_OPRITE)' : !reg.enabled ? 'oprit din registru (/admin › Surse de date)' : ''
   const faraAcord = reg.legalStatus === 'needs_permission' && !opt.fetchImpl
-  if (motivOprit || faraAcord) {
+  const faraCheie = !!con.cheieMediu && !process.env[con.cheieMediu] && !opt.fetchImpl
+  if (motivOprit || faraAcord || faraCheie) {
     raport.status = 'oprit'
-    raport.mesaj = faraAcord ? `nu rulează: sursa necesită acord (${reg.requestLetter || 'docs/cereri-acces/'}); după răspuns, schimbă statutul legal în /admin` : motivOprit
+    raport.mesaj = faraAcord ? `nu rulează: sursa necesită acord (${reg.requestLetter || 'docs/cereri-acces/'}); după răspuns, schimbă statutul legal în /admin`
+      : faraCheie ? `nu rulează: lipsește ${con.cheieMediu} în fișierul .env (vezi docs/fluxuri-date.md, „Trafic în timp real”)` : motivOprit
     log(raport.mesaj)
     return raport
   }
 
   const cache: CacheHttp = { ...((reg.httpCache as CacheHttp) || {}) }
-  const descarca = descarcator(opt.fetchImpl || fetch, cache, { robots: opt.robots ?? !opt.fetchImpl, pauzaMs: opt.fetchImpl ? 1 : 2000 })
+  const descarca = descarcator(opt.fetchImpl || fetch, cache, { robots: opt.robots ?? (!opt.fetchImpl && !con.api), pauzaMs: opt.fetchImpl ? 1 : 2000 })
   let esecuri = Number(reg.consecutiveFailures) || 0
   try {
     const memorie = { ...((cache as Record<string, unknown>).__memorie as Record<string, string> || {}) }
@@ -195,7 +198,7 @@ export async function ruleazaConector(payload: Payload, key: string, opt: Optiun
     if (rez.neschimbat) {
       raport.status = 'neschimbat'; raport.mesaj = 'sursa nu are nimic nou (304)'
     } else {
-      const s = await scrie(payload, con, rez.elemente, { dryRun: opt.dryRun, acum, log })
+      const s = await scrie(payload, con, rez.elemente, { dryRun: opt.dryRun, acum, log, pastreazaLipsa: !!rez.incomplet })
       Object.assign(raport, s)
       const n = s.created + s.updated + s.expired
       raport.status = n ? 'ok' : 'neschimbat'

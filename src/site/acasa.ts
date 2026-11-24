@@ -52,7 +52,8 @@ function frazaAuto(snap: Snap, ed: Reg | null, h0: number): string {
   const a = snap.alerte.find((x) => !ed || x.counties.some((c) => c.regKey === ed.key))
   const pr = snap.pret?.values
   const f = pr ? fereastraIeftina(pr) : null
-  let s = w ? `${w.cond || 'Vremea'} la ${w.city}, ${w.temp}°C. ` : ''
+  // vremea pe orase e inca demonstrativa (fara sursa automata): in versiunea demonstrativa nu o punem in fraza
+  let s = w && process.env.NEXT_PUBLIC_DEMO !== 'true' ? `${w.cond || 'Vremea'} la ${w.city}, ${w.temp}°C. ` : ''
   if (a) s += `{vreme|${a.text}}. `
   s += ev ? `Pe {drum|${ev.road}|${ev.where.split(',')[0]}}: ${ev.what.charAt(0).toLowerCase() + ev.what.split('.')[0].slice(1)}. ` : 'Drumurile sunt libere. '
   if (f !== null) s += `Curentul e cel mai ieftin azi între {ieftin|${pad(f)}:00 și ${pad(f + 3)}:00}.`
@@ -120,12 +121,14 @@ export function alertaDrumuri(snap: Snap, ed: Reg | null): Safe {
 export function randuriDrumuri(snap: Snap, ed: Reg | null, n = 7): Safe {
   const ok = inEditie(ed)
   const evs = snap.ev.filter((e) => ok(e.regKey)).sort((a, b) => +(a.st === 'ok') - +(b.st === 'ok'))
+  if (!evs.length) return h`<p class="demo" style="margin:6px 0">Niciun drum închis, accident sau coadă raportată acum.</p>`
   return h`${evs.slice(0, n).map((e) => h`<div class="rrow"><span class="shield ${e.a ? 'a' : 'd'}">${e.road}</span><span><b>${e.where}</b><small>${e.what}</small></span><span class="st ${e.st}">${e.st === 'ok' ? 'normal' : e.lab}</span></div>`)}`
 }
 
 export function timpi(snap: Snap, ed: Reg | null): Safe {
   let l = snap.timpi.filter((t) => t.regKey === (ed?.key || ''))
   if (!l.length) l = snap.timpi.filter((t) => t.regKey === '')
+  if (!l.length) return h`<p class="demo" style="margin:6px 0">Timpii de parcurs nu sunt încă disponibili.</p>`
   return h`${l.map((t) => h`<div class="rrow" style="grid-template-columns:1fr auto auto"><span><b>${t.route}</b></span><b class="num">${t.duration}</b><span class="st ${t.st}">${t.delta}</span></div>`)}`
 }
 
@@ -238,7 +241,7 @@ export function paginaAcasa(snap: Snap, ed: Reg | null, acum: Date, ultimaVizita
       <div class="rmini">
         <div class="card-h"><h3>Cât stai pe drum azi</h3><small>față de o zi obișnuită</small></div>
         <div class="rlist" id="rtimes">${timpi(snap, ed)}</div>
-        <div class="demo" style="margin-top:8px">${process.env.NEXT_PUBLIC_DEMO === 'true' ? 'Timpi estimați, demonstrativi. ' : 'Timpi estimați. '}Surse: CNAIR, Poliția Rutieră, Infotrafic.</div>
+        <div class="demo" style="margin-top:8px">${snap.timpi.length ? (process.env.NEXT_PUBLIC_DEMO === 'true' ? 'Timpi estimați, demonstrativi.' : 'Timpi estimați.') : ''}</div>
       </div>
     </div>
   </section>

@@ -109,3 +109,27 @@ export const RESEDINTE: Record<string, string> = {
   'satu-mare': 'Satu Mare', sibiu: 'Sibiu', suceava: 'Suceava', teleorman: 'Alexandria', timis: 'Timișoara', tulcea: 'Tulcea', valcea: 'Râmnicu Vâlcea',
   vaslui: 'Vaslui', vrancea: 'Focșani',
 }
+
+// ——— judetul unui punct (lon, lat), din conturul judetelor de pe harta (aproximare de ~1 km, suficienta pentru incadrare)
+const CONTURURI: { slug: string; p: Punct[] }[] = []
+for (const [n, v] of Object.entries(hartaDate.counties as Record<string, { d: string }>)) {
+  const slug = PE_NUME.get(cheie(n))
+  if (!slug) continue
+  for (const sub of v.d.split(/(?=M)/)) {
+    const p = [...sub.matchAll(/(-?[\d.]+),(-?[\d.]+)/g)].map((m) => invP(Number(m[1]), Number(m[2])) as Punct)
+    if (p.length > 2) CONTURURI.push({ slug, p })
+  }
+}
+function inPoligon(lon: number, lat: number, p: Punct[]) {
+  let c = false
+  for (let i = 0, j = p.length - 1; i < p.length; j = i++) {
+    const [x1, y1] = p[i], [x2, y2] = p[j]
+    if ((y1 > lat) !== (y2 > lat) && lon < ((x2 - x1) * (lat - y1)) / (y2 - y1) + x1) c = !c
+  }
+  return c
+}
+/** slug-ul judetului in care cade punctul; Bucurestiul are prioritate fata de Ilfov (e inclus in el). null = in afara Romaniei. */
+export function judetDinPunct(lon: number, lat: number): string | null {
+  const l = CONTURURI.filter((c) => inPoligon(lon, lat, c.p)).map((c) => c.slug)
+  return l.includes('bucuresti') ? 'bucuresti' : l[0] || null
+}

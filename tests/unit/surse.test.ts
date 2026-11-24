@@ -193,8 +193,8 @@ describe('descarcari politicoase', () => {
 })
 
 describe('registru si planificare', () => {
-  it('pornite: ANM, OPCOM, CNAIR, carburanti, Apa Oltenia; oprite (robots / anti-robot / formular): IGPR, DEO, Distrigaz', () => {
-    expect(CONECTORI.filter((c) => c.pornitImplicit).map((c) => c.key).sort()).toEqual(['anm-avertizari', 'avarii-apa-oltenia', 'carburanti-cc', 'cnair-drumuri', 'opcom-pzu'])
+  it('pornite: ANM, OPCOM, CNAIR, carburanti, Apa Oltenia, TomTom (doar cu cheie); oprite (robots / anti-robot / formular): IGPR, DEO, Distrigaz', () => {
+    expect(CONECTORI.filter((c) => c.pornitImplicit).map((c) => c.key).sort()).toEqual(['anm-avertizari', 'avarii-apa-oltenia', 'carburanti-cc', 'cnair-drumuri', 'opcom-pzu', 'tomtom-trafic'])
     for (const c of CONECTORI) {
       expect(c.url).toMatch(/^https:\/\//); expect(c.atribuire).toBeTruthy()
       if (!c.pornitImplicit) { expect(c.legal).toBe('needs_permission'); expect(c.note).toMatch(/^OPRIT: /); expect(readFileSync(c.cerere!, 'utf8')).toContain('[Denumire firma editoare]') }
@@ -285,5 +285,48 @@ describe('anunturi publice (decizia editorului)', () => {
   it('legaturile din pagina-lista', () => {
     const l = linkuri('<a href="/ro/stiri/infotrafic-24-11">Comunicat INFOTRAFIC</a><a href="https://alt.ro/x">alt</a><a href="docs/a.pdf">Program</a>', 'https://www.exemplu.ro/ro/', /infotrafic|\.pdf/i)
     expect(l.map((x) => x.url)).toEqual(['https://www.exemplu.ro/ro/stiri/infotrafic-24-11', 'https://www.exemplu.ro/ro/docs/a.pdf'])
+  })
+})
+
+// ——— TomTom: trafic in timp real
+import { parseazaTomtom } from '../../src/surse/parsere/tomtom'
+import { judetDinPunct } from '../../src/surse/geo'
+import { grilaRomania, TOMTOM } from '../../src/surse/conectori'
+
+describe('TomTom: incidente de trafic', () => {
+  const acum = new Date('2026-11-25T07:00:00Z')
+  const el = parseazaTomtom(readFileSync('tests/fixtures/surse/tomtom-incidente-construit.json', 'utf8'), acum)
+  const pe = (id: string) => el.find((e) => e.externalId === `tomtom:${id}`)?.data
+
+  it('judetul unui punct din conturul hartii', () => {
+    expect(judetDinPunct(23.8, 44.32)).toBe('dolj')
+    expect(judetDinPunct(26.1, 44.44)).toBe('bucuresti')
+    expect(judetDinPunct(24.9, 44.86)).toBe('arges')
+    expect(judetDinPunct(19.05, 47.5)).toBeNull()
+  })
+  it('grila acopera Romania in dreptunghiuri sub 10.000 km²', () => {
+    const g = grilaRomania()
+    expect(g.length).toBeGreaterThan(25)
+    expect(g.length).toBeLessThan(45)
+    for (const [a, b, c, d] of g) expect(((c - a) * 111.32 * Math.cos((d * Math.PI) / 180)) * ((d - b) * 111.32)).toBeLessThan(10000)
+  })
+  it('accidentul de pe A1: drumul national inaintea celui european, judet, intarziere, text in romana', () => {
+    expect(pe('acc-a1')).toMatchObject({ road: 'A1', status: 'queue', label: 'accident', delayMinutes: 21, county: 'arges', segment: 'Pitești – Ștefănești' })
+    expect(String(pe('acc-a1')!.what)).toMatch(/^Accident \(întârziere de 21 min, pe 4,2 km\)\.$/)
+  })
+  it('cozile mici nu ajung pe harta, cele mari da', () => {
+    expect(pe('jam-mic')).toBeUndefined()
+    expect(pe('jam-mare')).toMatchObject({ road: 'București', segment: 'Calea Victoriei – Piața Victoriei', status: 'queue', county: 'bucuresti', delayMinutes: 12, label: '+12 min' })
+  })
+  it('drum inchis cu data de sfarsit de la sursa; in afara tarii si lucrarile pe DJ raman pe dinafara', () => {
+    expect(pe('inchis-dn7c')).toMatchObject({ road: 'DN7C', status: 'closed', county: 'sibiu', until: '2027-06-01T00:00:00.000Z' })
+    expect(pe('budapesta')).toBeUndefined()
+    expect(pe('lucrari-dj')).toBeUndefined()
+  })
+  it('fara ora de sfarsit: valabil putin, prelungit la fiecare rulare', () => {
+    expect(pe('acc-a1')!.until).toBe(new Date(+acum + 3600e3).toISOString())
+  })
+  it('conectorul: API cu licenta, cheie din .env, sursa citata', () => {
+    expect(TOMTOM).toMatchObject({ legal: 'partner_api', api: true, cheieMediu: 'TOMTOM_API_KEY', atribuire: 'TomTom Traffic', expiraLipsa: true, collection: 'road-events' })
   })
 })

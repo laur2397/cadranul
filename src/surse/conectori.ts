@@ -10,10 +10,11 @@ import { parseazaAvarii } from './parsere/avarii'
 import { randuriDinPdf } from './parsere/deo-pdf'
 import { anuntInElemente, anunturiDinHtml, citesteRss } from './parsere/anunturi'
 import { idUat, statiiSiPreturi } from './parsere/monitor'
-import { JUDETE, RESEDINTE } from './geo'
+import { parseazaTomtom } from './parsere/tomtom'
+import { JUDETE, RESEDINTE, judetDinPunct } from './geo'
 import { textDinHtml } from './text'
 import { BLOCAJ } from './http'
-import type { Conector, ContextRulare, Rezultat } from './tipuri'
+import type { Conector, ContextRulare, Element, Rezultat } from './tipuri'
 
 
 export const ANM: Conector = {
@@ -233,5 +234,69 @@ export const AVARII_GAZ: Conector = {
   },
 }
 
-export const CONECTORI: Conector[] = [ANM, OPCOM, IGPR, CNAIR, CARBURANTI, AVARII_DEO, AVARII_APA, AVARII_GAZ]
+
+// ——— Trafic in timp real: TomTom Traffic, „Incident Details” (API cu licenta, cheie proprie in .env: TOMTOM_API_KEY).
+// Un dreptunghi de cerere are cel mult 10.000 km²: Romania se acopera cu ~36 de dreptunghiuri (doar cele care ating tara).
+// Planul gratuit: 2.500 de cereri pe zi -> o rulare la 25 de minute (~2.100 de cereri pe zi). Cu plata: TOMTOM_MINUTE=5..60.
+export function grilaRomania(): [number, number, number, number][] {
+  const out: [number, number, number, number][] = []
+  const H = 0.95
+  for (let lat = 43.6; lat < 48.3; lat += H) {
+    const mij = lat + H
+    const W = 9500 / (111.32 * H * 111.32 * Math.cos((mij * Math.PI) / 180))
+    for (let lon = 20.2; lon < 29.8; lon += W) {
+      let atinge = false
+      for (let i = 0; i <= 6 && !atinge; i++) for (let j = 0; j <= 6 && !atinge; j++) if (judetDinPunct(lon + (W * i) / 6, lat + (H * j) / 6)) atinge = true
+      if (atinge) out.push([+lon.toFixed(3), +lat.toFixed(3), +(lon + W).toFixed(3), +(lat + H).toFixed(3)])
+    }
+  }
+  return out
+}
+const MINUTE_TOMTOM = Math.min(60, Math.max(5, Number(process.env.TOMTOM_MINUTE) || 25))
+const CAMPURI_V5 = '{incidents{type,geometry{type,coordinates},properties{id,iconCategory,magnitudeOfDelay,startTime,endTime,from,to,length,delay,roadNumbers}}}'
+
+export const TOMTOM: Conector = {
+  key: 'tomtom-trafic', name: 'TomTom Traffic: incidente de trafic în timp real (accidente, cozi, drumuri închise)', collection: 'road-events',
+  legal: 'partner_api', pornitImplicit: true, api: true, cheieMediu: 'TOMTOM_API_KEY',
+  url: 'https://api.tomtom.com/maps/orbis/traffic/incidents/details',
+  termsUrl: 'https://www.tomtom.com/legal/', atribuire: 'TomTom Traffic',
+  planificare: { laMinute: MINUTE_TOMTOM }, frecventaText: `la ${MINUTE_TOMTOM} de minute (planul gratuit TomTom: 2.500 de cereri pe zi)`,
+  expiraLipsa: true,
+  note: 'API cu licență, cont și cheie proprii (developer.tomtom.com). Se păstrează doar incidentele utile cititorului: drumuri închise, accidente, polei/inundații, cozi de peste 5 minute, lucrări și vehicule defecte pe autostrăzi și drumuri naționale. Atribuire obligatorie: „TomTom”. Condițiile de afișare și păstrare a datelor se verifică în contractul TomTom înainte de lansarea publică.',
+  async ruleaza(c) {
+    const cheieApi = process.env.TOMTOM_API_KEY || ''
+    const grila = grilaRomania()
+    const minIntarziere = Number(process.env.TOMTOM_MIN_INTARZIERE) || 5
+    // Orbis v2 (cheia in antet); daca cheia nu are acces la Orbis, API-ul clasic v5 (cheia in adresa, nepastrata in registru)
+    let varianta: 'orbis' | 'v5' = (c.memorie.tomtomVarianta as 'orbis' | 'v5') || 'orbis'
+    const cere = async (b: number[]) => {
+      if (varianta === 'orbis') {
+        return c.descarca(`${c.url}?apiVersion=2&bbox=${b.join(',')}&timeValidity=present`, { conditionat: false, accept: 'application/json', antete: { 'TomTom-Api-Key': cheieApi, 'TomTom-Api-Version': '2' } })
+      }
+      return c.descarca(`https://api.tomtom.com/traffic/services/5/incidentDetails?bbox=${b.join(',')}&fields=${encodeURIComponent(CAMPURI_V5)}&timeValidityFilter=present&key=${encodeURIComponent(cheieApi)}`, { conditionat: false, accept: 'application/json' })
+    }
+    const vazute = new Map<string, Element>()
+    let erori = 0, prima = ''
+    for (const [i, b] of grila.entries()) {
+      try {
+        let r
+        try { r = await cere(b) } catch (e) {
+          if (i === 0 && varianta === 'orbis' && /HTTP (400|401|403|404)/.test((e as Error).message)) { varianta = 'v5'; r = await cere(b) } else throw e
+        }
+        for (const el of parseazaTomtom(r.text, c.acum, { minIntarziere, valabilOre: Math.max(1, (MINUTE_TOMTOM * 2.5) / 60) })) vazute.set(el.externalId, el)
+      } catch (e) {
+        erori++; prima ||= (e as Error).message
+        if (i === 0 && /HTTP (401|403)/.test(prima)) throw new Error(`TomTom refuză cheia (${prima}). Verifică TOMTOM_API_KEY din .env și că în contul TomTom e activ „Traffic API”.`)
+        if (erori >= 5 && vazute.size === 0) throw new Error(`TomTom: ${erori} cereri eșuate la rând; ultima: ${prima}`)
+      }
+      await new Promise((r) => setTimeout(r, c.pauzaMs ?? 300))
+    }
+    c.memorie.tomtomVarianta = varianta
+    // o problema la cateva dreptunghiuri nu trebuie sa stearga de pe harta incidentele lor: marcam rularea ca incompleta
+    if (erori) c.log(`${erori} din ${grila.length} zone nu au răspuns (${prima}); incidentele lor rămân până la rularea următoare`)
+    return { elemente: [...vazute.values()], ...(erori ? { incomplet: `${erori} zone fără răspuns` } : {}) }
+  },
+}
+
+export const CONECTORI: Conector[] = [ANM, OPCOM, TOMTOM, IGPR, CNAIR, CARBURANTI, AVARII_DEO, AVARII_APA, AVARII_GAZ]
 export const conector = (key: string) => CONECTORI.find((c) => c.key === key) || null
