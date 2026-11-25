@@ -725,3 +725,9 @@ a.icon-btn{color:inherit}
 .demo.src{margin-top:6px}
 .fuel.vechi{opacity:.55;filter:grayscale(1)}
 .tbl tr.vechi td{color:var(--ink-3)}
+
+/* Reclame in coloana din dreapta (rail): aliniate la latimea coloanei; half-page lipicios cat timp e loc */
+.side .rail-ad{width:100%}
+.side .rail-ad .mrec,.side .rail-ad .half{width:100%}
+.rail-sticky{position:sticky;top:84px}
+@media(max-width:1040px){.rail-sticky{position:static}}

@@ -6,7 +6,7 @@ import { frazaHTML, frazaText } from '../shared/fraza'
 import { h, raw, type Safe } from './html'
 import type { Art, Prov, Reg, Snap } from './date'
 import { dateHarta, instrument, inEditie } from './harta'
-import { billboard } from './reclame'
+import { billboard, reclama } from './reclame'
 import { ic, pagina } from './shell'
 import { cand, candLung, dataLunga, hhmm, oraRO, salut, ziRO } from './timp'
 import { jsonLdOrganizatie, jsonLdSite } from './seo'
@@ -214,7 +214,9 @@ export function paginaAcasa(snap: Snap, ed: Reg | null, acum: Date, ultimaVizita
           <div class="fuel${fc.vechi ? ' vechi' : ''}" id="fuel">${fc.cells}</div>
           <div class="demo" style="margin-top:6px" id="fuNote">${fc.nota} ${process.env.NEXT_PUBLIC_DEMO === 'true' && !fc.vechi && !snap.fuelNat.prov?.imp ? 'Prețuri demonstrative, lei/litru.' : 'Lei/litru.'}</div>
         </section>
+        ${reclama('mrec', ed ? 'editie-rail-mrec' : 'acasa-rail-mrec', { firma: 'Netvi Fibră (reclamă demonstrativă)', titlu: 'Internet fibră 1 Gbps, 99 lei/lună', sub: 'Instalare gratuită în 48 de ore.', img: '/img/16-tech-700.jpg' }, 'rail-ad')}
         ${top ? h`<a class="topstory" id="topStory" href="/articol/${top.slug}" data-id="${top.slug}"><div class="ph"><img src="${top.img.src}" alt="" fetchpriority="high"><span>${sel.noi.has(top.slug) ? `Acum, ${cand(top.pub, acum)}` : top.label}</span></div><div class="tx"><h2>${top.title}</h2><p>${top.dek}</p></div></a>` : ''}
+        ${reclama('half', ed ? 'editie-rail-half' : 'acasa-rail-half', { firma: 'SolarVolt (reclamă demonstrativă)', titlu: 'Panouri solare cu 0% avans', sub: 'Îți scazi factura la curent din prima lună. Dosar Casa Verde inclus.', cta: 'Calculează economia', img: '/img/09-energie-700.jpg' }, 'rail-ad rail-sticky')}
       </aside>
     </div>
   </section>
